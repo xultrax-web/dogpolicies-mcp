@@ -1,0 +1,83 @@
+{
+  "name": "dogrulebook-mcp",
+  "version": "0.1.0",
+  "description": "MCP server for verified dog rules at California and Nevada parks, beaches, trails, hotels and campgrounds: leash rules, pet fees, weight limits, every fact with its official source and the date it was checked.",
+  "mcpName": "io.github.xultrax-web/dogrulebook",
+  "type": "module",
+  "license": "MIT",
+  "author": "Dog Rulebook (https://dogrulebook.com)",
+  "homepage": "https://dogrulebook.com/mcp/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/xultrax-web/dogrulebook.git",
+    "directory": "packages/mcp"
+  },
+  "bugs": {
+    "url": "https://github.com/xultrax-web/dogrulebook/issues"
+  },
+  "bin": {
+    "dogrulebook-mcp": "bin/dogrulebook-mcp.mjs"
+  },
+  "exports": {
+    ".": "./src/index.mjs",
+    "./core": "./src/core/index.mjs",
+    "./package.json": "./package.json"
+  },
+  "types": "./types/index.d.ts",
+  "files": [
+    "bin/",
+    "src/",
+    "types/",
+    "data/snapshot.json.gz",
+    "server.json",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=20.19"
+  },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "check": "node bin/dogrulebook-mcp.mjs check --offline",
+    "demo": "node bin/dogrulebook-mcp.mjs demo --offline",
+    "test": "node --test \"test/*.test.mjs\"",
+    "test:e2e": "node --test test/e2e/*.test.mjs",
+    "inspect": "npx --yes @modelcontextprotocol/inspector --cli node bin/dogrulebook-mcp.mjs --offline --method tools/list",
+    "prepack": "node scripts/prepack.mjs"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/server": "^2.4.0",
+    "zod": "^4.2.0"
+  },
+  "devDependencies": {
+    "@modelcontextprotocol/client": "^2.4.0"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "keywords": [
+    "mcp",
+    "mcp-server",
+    "model-context-protocol",
+    "modelcontextprotocol",
+    "claude",
+    "cursor",
+    "ai-agent",
+    "llm-tools",
+    "dog-friendly",
+    "pet-friendly",
+    "pet-policy",
+    "dogs",
+    "travel",
+    "hotels",
+    "beaches",
+    "parks",
+    "camping",
+    "california",
+    "nevada",
+    "open-data",
+    "cc-by"
+  ]
+}

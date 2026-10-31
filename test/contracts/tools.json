@@ -1,0 +1,405 @@
+{
+  "dogrulebook_search_places": {
+    "title": "Search places",
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    },
+    "input": {
+      "required": [],
+      "properties": [
+        "county",
+        "dogs_allowed",
+        "limit",
+        "near",
+        "off_leash",
+        "offset",
+        "query",
+        "region",
+        "response_format",
+        "state",
+        "type"
+      ]
+    },
+    "output": {
+      "required": [
+        "as_of",
+        "attribution_text",
+        "attribution_url",
+        "count",
+        "has_more",
+        "license",
+        "offset",
+        "places",
+        "total"
+      ],
+      "properties": [
+        "as_of",
+        "attribution_text",
+        "attribution_url",
+        "count",
+        "has_more",
+        "license",
+        "offset",
+        "places",
+        "total"
+      ]
+    },
+    "since": "0.1.0",
+    "deprecated": null
+  },
+  "dogrulebook_get_place": {
+    "title": "Get place details",
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    },
+    "input": {
+      "required": ["id"],
+      "properties": ["id", "response_format"]
+    },
+    "output": {
+      "required": [
+        "answer",
+        "as_of",
+        "attribution_text",
+        "attribution_url",
+        "citation",
+        "confidence",
+        "confirmed_by",
+        "facts",
+        "freshness",
+        "id",
+        "license",
+        "name",
+        "not_stated",
+        "record_license",
+        "review_due",
+        "rule_records",
+        "rules",
+        "source_urls",
+        "sources",
+        "status",
+        "type",
+        "uid",
+        "url",
+        "verified_at"
+      ],
+      "properties": [
+        "answer",
+        "as_of",
+        "attribution_text",
+        "attribution_url",
+        "citation",
+        "confidence",
+        "confirmed_by",
+        "facts",
+        "freshness",
+        "id",
+        "license",
+        "name",
+        "not_stated",
+        "record_license",
+        "review_due",
+        "rule_records",
+        "rules",
+        "source_urls",
+        "sources",
+        "status",
+        "type",
+        "uid",
+        "url",
+        "verified_at"
+      ]
+    },
+    "since": "0.1.0",
+    "deprecated": null
+  },
+  "dogrulebook_find_hotels": {
+    "title": "Find hotels for a dog",
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    },
+    "input": {
+      "required": [],
+      "properties": [
+        "brand",
+        "county",
+        "dog_weight_lb",
+        "dogs",
+        "include_possible",
+        "limit",
+        "max_total_fee",
+        "near",
+        "nights",
+        "offset",
+        "query",
+        "region",
+        "response_format",
+        "state"
+      ]
+    },
+    "output": {
+      "required": [
+        "as_of",
+        "attribution_text",
+        "attribution_url",
+        "count",
+        "counts",
+        "has_more",
+        "hotels",
+        "license",
+        "offset",
+        "total"
+      ],
+      "properties": [
+        "as_of",
+        "attribution_text",
+        "attribution_url",
+        "count",
+        "counts",
+        "has_more",
+        "hotels",
+        "license",
+        "offset",
+        "total"
+      ]
+    },
+    "since": "0.1.0",
+    "deprecated": null
+  },
+  "dogrulebook_get_brand_policy": {
+    "title": "Get hotel brand pet policy",
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    },
+    "input": {
+      "required": ["brand"],
+      "properties": ["brand", "response_format"]
+    },
+    "output": {
+      "required": [
+        "answer",
+        "as_of",
+        "attribution_text",
+        "attribution_url",
+        "facts",
+        "id",
+        "license",
+        "name",
+        "not_stated",
+        "source_urls",
+        "url",
+        "verified_at"
+      ],
+      "properties": [
+        "answer",
+        "as_of",
+        "attribution_text",
+        "attribution_url",
+        "facts",
+        "id",
+        "license",
+        "name",
+        "not_stated",
+        "source_urls",
+        "url",
+        "verified_at"
+      ]
+    },
+    "since": "0.1.0",
+    "deprecated": null
+  },
+  "dogrulebook_browse_answers": {
+    "title": "Browse answered questions",
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    },
+    "input": {
+      "required": [],
+      "properties": ["limit", "offset", "response_format", "slug"]
+    },
+    "output": {
+      "required": [
+        "as_of",
+        "attribution_text",
+        "attribution_url",
+        "license",
+        "total"
+      ],
+      "properties": [
+        "as_of",
+        "attribution_text",
+        "attribution_url",
+        "license",
+        "places",
+        "questions",
+        "total"
+      ]
+    },
+    "since": "0.1.0",
+    "deprecated": null
+  },
+  "dogrulebook_route_stops": {
+    "title": "Dog stops along a highway",
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    },
+    "input": {
+      "required": [],
+      "properties": [
+        "direction",
+        "dog_friendly_only",
+        "dog_weight_lb",
+        "dogs",
+        "from_mile",
+        "kinds",
+        "limit",
+        "max_total_fee",
+        "near",
+        "nights",
+        "offset",
+        "response_format",
+        "route",
+        "to_mile"
+      ]
+    },
+    "output": {
+      "required": [
+        "as_of",
+        "attribution_text",
+        "attribution_url",
+        "count",
+        "guide",
+        "has_more",
+        "license",
+        "offset",
+        "route",
+        "stops",
+        "total"
+      ],
+      "properties": [
+        "as_of",
+        "attribution_text",
+        "attribution_url",
+        "count",
+        "guide",
+        "has_more",
+        "license",
+        "offset",
+        "route",
+        "stops",
+        "total"
+      ]
+    },
+    "since": "0.1.0",
+    "deprecated": null
+  },
+  "dogrulebook_get_rule": {
+    "title": "Get one rule by id",
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    },
+    "input": {
+      "required": ["id"],
+      "properties": ["id", "response_format"]
+    },
+    "output": {
+      "required": [
+        "as_of",
+        "attribution_text",
+        "attribution_url",
+        "license",
+        "place",
+        "rule"
+      ],
+      "properties": [
+        "as_of",
+        "attribution_text",
+        "attribution_url",
+        "license",
+        "place",
+        "rule"
+      ]
+    },
+    "since": "0.1.0",
+    "deprecated": null
+  },
+  "dogrulebook_changes_since": {
+    "title": "Changes since a date",
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    },
+    "input": {
+      "required": ["since"],
+      "properties": ["limit", "offset", "outcome", "response_format", "since"]
+    },
+    "output": {
+      "required": [
+        "as_of",
+        "attribution_text",
+        "attribution_url",
+        "count",
+        "events",
+        "has_more",
+        "license",
+        "rule_changes",
+        "total"
+      ],
+      "properties": [
+        "as_of",
+        "attribution_text",
+        "attribution_url",
+        "count",
+        "events",
+        "has_more",
+        "license",
+        "rule_changes",
+        "total"
+      ]
+    },
+    "since": "0.1.0",
+    "deprecated": null
+  },
+  "dogrulebook_report_correction": {
+    "title": "Report a correction",
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "idempotentHint": false,
+      "openWorldHint": true
+    },
+    "input": {
+      "required": ["message", "place_id"],
+      "properties": ["contact", "message", "place_id", "source_url"]
+    },
+    "output": {
+      "required": ["place_id", "report_id", "status", "url"],
+      "properties": ["place_id", "report_id", "status", "url"]
+    },
+    "since": "0.1.0",
+    "deprecated": null
+  }
+}
