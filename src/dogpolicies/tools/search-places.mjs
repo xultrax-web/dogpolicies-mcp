@@ -12,13 +12,13 @@ import {
 } from "./common.mjs";
 
 export const searchPlaces = (ctx) => ({
-  name: "dogrulebook_search_places",
+  name: "dogpolicies_search_places",
   title: "Search places",
   since: "0.1.0",
   cache: true,
   description: `Search parks, beaches, trails, hotels, campgrounds and cabin resorts in California and Nevada by name, location and dog rules.
 
-Returns one page of places with a one-line answer ("Yes, on a leash no longer than 6 feet."), status (yes, yes_restricted, no, varies), verification date and page URL. Use dogrulebook_get_place for full rules and sources, and dogrulebook_find_hotels to check a specific dog's weight and budget at hotels.
+Returns one page of places with a one-line answer ("Yes, on a leash no longer than 6 feet."), status (yes, yes_restricted, no, varies), verification date and page URL. Use dogpolicies_get_place for full rules and sources, and dogpolicies_find_hotels to check a specific dog's weight and budget at hotels.
 
 Examples:
   - "Off-leash beaches near San Diego" -> type="beach", off_leash=true, near={lat:32.72, lon:-117.16}
@@ -27,7 +27,8 @@ Examples:
   - "Lake Tahoe beaches in Nevada that allow dogs" -> type="beach", state="NV", dogs_allowed=true
   - "Off-leash dog parks in Las Vegas" -> type="park", off_leash=true, county="Clark", state="NV"
   - "RV parks in Fresno County that take dogs" -> type="campground", county="Fresno", dogs_allowed=true
-  - "Dog-friendly cabins in June Lake" -> type="cabins", query="June Lake", dogs_allowed=true`,
+  - "Dog-friendly cabins in June Lake" -> type="cabins", query="June Lake", dogs_allowed=true
+  - "Restaurants with a dog-friendly patio in Alameda" -> type="restaurant", query="Alameda"`,
   inputSchema: z.strictObject({
     query: z
       .string()
@@ -36,10 +37,18 @@ Examples:
       .optional()
       .describe("Words to match in the name, city, county or brand"),
     type: z
-      .enum(["lodging", "campground", "cabins", "beach", "park", "trail"])
+      .enum([
+        "lodging",
+        "campground",
+        "cabins",
+        "beach",
+        "park",
+        "trail",
+        "restaurant",
+      ])
       .optional()
       .describe(
-        "Kind of place; campground covers campgrounds and RV parks (some also rent cabins), cabins covers cabin resorts with no campground",
+        "Kind of place; campground covers campgrounds and RV parks (some also rent cabins), cabins covers cabin resorts with no campground, restaurant covers restaurants, cafes, bars, breweries and tasting rooms (dogs on the patio, by the owner's published policy)",
       ),
     dogs_allowed: z
       .boolean()

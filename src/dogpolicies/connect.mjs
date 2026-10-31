@@ -9,7 +9,7 @@ import { createServer } from "./server.mjs";
 /** Connects a client to a fresh server over the runtime. Returns { client, close }. */
 export async function connectInProcess(
   ctx,
-  { clientName = "dogrulebook-inprocess" } = {},
+  { clientName = "dogpolicies-inprocess" } = {},
 ) {
   const [clientTransport, serverTransport] =
     InMemoryTransport.createLinkedPair();

@@ -16,7 +16,7 @@ export const routeStops = (ctx) => {
   const routes = ctx.graph.routes;
   const ROUTE_IDS = ctx.graph.routeIds;
   return {
-    name: "dogrulebook_route_stops",
+    name: "dogpolicies_route_stops",
     title: "Dog stops along a highway",
     since: "0.1.0",
     cache: true,
@@ -78,6 +78,7 @@ Examples:
             "park",
             "beach",
             "trail",
+            "restaurant",
           ]),
         )
         .min(1)

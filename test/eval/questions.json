@@ -1,0 +1,241 @@
+[
+  {
+    "q": "Can I bring my dog to Point Lobos?",
+    "tool": "dogpolicies_search_places",
+    "args": { "query": "Point Lobos" },
+    "facts": ["Point Lobos", "No\\b", "checked \\d{4}-\\d{2}-\\d{2}"]
+  },
+  {
+    "q": "Where can my dog run off leash on a beach near San Diego?",
+    "tool": "dogpolicies_search_places",
+    "args": {
+      "type": "beach",
+      "off_leash": true,
+      "near": { "lat": 32.72, "lon": -117.16, "radius_miles": 25 }
+    },
+    "facts": ["Ocean Beach", "off leash", "San Diego County"]
+  },
+  {
+    "q": "Which state parks in Marin County allow dogs?",
+    "tool": "dogpolicies_search_places",
+    "args": { "type": "park", "county": "Marin", "dogs_allowed": true },
+    "facts": ["Marin County", "Yes"]
+  },
+  {
+    "q": "Are there dog-friendly beaches at Lake Tahoe on the Nevada side?",
+    "tool": "dogpolicies_search_places",
+    "args": { "type": "beach", "state": "NV", "dogs_allowed": true },
+    "facts": ["Nevada"]
+  },
+  {
+    "q": "Off-leash dog parks in Las Vegas",
+    "tool": "dogpolicies_search_places",
+    "args": {
+      "type": "park",
+      "off_leash": true,
+      "county": "Clark",
+      "state": "NV"
+    },
+    "facts": ["Nevada", "off[ -]leash"]
+  },
+  {
+    "q": "Full rules and sources for Carmel Beach",
+    "tool": "dogpolicies_get_place",
+    "args": { "id": "carmel-beach" },
+    "facts": ["^Carmel Beach", "Sources:", "rule id rul_"]
+  },
+  {
+    "q": "Will a Monterey hotel take my 70 lb Lab for under $50 a night?",
+    "tool": "dogpolicies_find_hotels",
+    "args": { "county": "Monterey", "dog_weight_lb": 70, "max_total_fee": 50 },
+    "facts": ["match", "70 lb dog", "Pet fee:"]
+  },
+  {
+    "q": "Two dogs, three nights near Palm Springs: which hotels and what will the pet fee be?",
+    "tool": "dogpolicies_find_hotels",
+    "args": {
+      "near": { "lat": 33.83, "lon": -116.55 },
+      "dogs": 2,
+      "nights": 3
+    },
+    "facts": ["2 dogs, 3 nights", "Pet fee:"]
+  },
+  {
+    "q": "Is the Motel 6 in Fresno dog friendly?",
+    "tool": "dogpolicies_find_hotels",
+    "args": { "query": "Motel 6 Fresno" },
+    "facts": ["Motel 6", "Fresno"]
+  },
+  {
+    "q": "What is Motel 6's pet policy?",
+    "tool": "dogpolicies_get_brand_policy",
+    "args": { "brand": "motel-6" },
+    "facts": ["Motel 6 pet policy", "Pets per room", "Official policy"]
+  },
+  {
+    "q": "Does Kimpton charge a pet fee and is there a weight limit?",
+    "tool": "dogpolicies_get_brand_policy",
+    "args": { "brand": "Kimpton" },
+    "facts": ["Kimpton", "Pet fee", "Weight limit"]
+  },
+  {
+    "q": "Which California national parks allow dogs?",
+    "tool": "dogpolicies_browse_answers",
+    "args": {},
+    "facts": ["answered questions", "national parks"]
+  },
+  {
+    "q": "List the off-leash dog beaches in California",
+    "tool": "dogpolicies_browse_answers",
+    "args": { "slug": "off-leash-dog-beaches-california" },
+    "facts": ["off leash", "beach"]
+  },
+  {
+    "q": "Driving north on I-5 from Los Angeles with a 70 lb dog, where can we stop?",
+    "tool": "dogpolicies_route_stops",
+    "args": {
+      "near": { "lat": 34.05, "lon": -118.24 },
+      "direction": "north",
+      "dog_weight_lb": 70
+    },
+    "facts": ["dog stops on I-5", "heading north", "Mile \\d"]
+  },
+  {
+    "q": "Pet areas at rest stops on the Grapevine",
+    "tool": "dogpolicies_route_stops",
+    "args": {
+      "from_mile": 170,
+      "to_mile": 222,
+      "kinds": ["rest_area", "park"]
+    },
+    "facts": ["miles 170–222", "rest area|Rest Area"]
+  },
+  {
+    "q": "Heading east on I-80 from Reno with a dog, where can we stop in Nevada?",
+    "tool": "dogpolicies_route_stops",
+    "args": {
+      "route": "i-80-nevada",
+      "near": { "lat": 39.53, "lon": -119.81 },
+      "direction": "east"
+    },
+    "facts": ["I-80 in Nevada", "heading east"]
+  },
+  {
+    "q": "Show me the source for the dogs-allowed rule rul_jncvtnrpgcw2vjge_dogsallowed",
+    "tool": "dogpolicies_get_rule",
+    "args": { "id": "rul_jncvtnrpgcw2vjge_dogsallowed" },
+    "facts": ["Carmel Beach", "Confidence:", "Permalink:"]
+  },
+  {
+    "q": "What has changed in the data since October 1?",
+    "tool": "dogpolicies_changes_since",
+    "args": { "since": "2026-10-01" },
+    "facts": ["verification events since 2026-10-01"]
+  },
+  {
+    "q": "Which records were marked changed this year?",
+    "tool": "dogpolicies_changes_since",
+    "args": { "since": "2026-01-01", "outcome": "changed" },
+    "facts": ["\\(changed\\)"]
+  },
+  {
+    "q": "That fee is wrong, the hotel now charges $75; report it",
+    "tool": "dogpolicies_report_correction",
+    "args": {
+      "place_id": "carmel-beach",
+      "message": "The pet fee is now $75 per stay."
+    },
+    "facts": ["correction", "#correction|Filed correction"]
+  },
+  {
+    "q": "What can my dog do in Carmel?",
+    "tool": "dogpolicies_near",
+    "args": { "place": "Carmel" },
+    "facts": ["within 15 miles of Carmel, CA", "## Beaches"]
+  },
+  {
+    "q": "Dog-friendly things within 5 miles of South Lake Tahoe",
+    "tool": "dogpolicies_near",
+    "args": { "place": "South Lake Tahoe", "radius_miles": 5 },
+    "facts": ["South Lake Tahoe, CA"]
+  },
+  {
+    "q": "Anything for dogs around Washoe County, Nevada?",
+    "tool": "dogpolicies_near",
+    "args": { "place": "Washoe County, NV", "radius_miles": 40 },
+    "facts": ["Washoe County, Nevada"]
+  },
+  {
+    "q": "Plan three nights in Monterey with our 70 lb Lab, pet fees under $150",
+    "tool": "dogpolicies_plan_trip",
+    "args": {
+      "place": "Monterey",
+      "dog_weight_lb": 70,
+      "nights": 3,
+      "max_total_fee": 150
+    },
+    "facts": ["A trip to Monterey, CA", "## Where to stay", "## Beaches"]
+  },
+  {
+    "q": "A weekend trip to Alameda with two small dogs: hotel, beach and a patio",
+    "tool": "dogpolicies_plan_trip",
+    "args": { "place": "Alameda", "dogs": 2, "nights": 2 },
+    "facts": ["A trip to Alameda", "2 dogs, 2 nights"]
+  },
+  {
+    "q": "Camping near Mammoth Lakes with a dog",
+    "tool": "dogpolicies_plan_trip",
+    "args": {
+      "place": "Mono County",
+      "stay_types": ["campground", "cabins"],
+      "radius_miles": 40
+    },
+    "facts": ["Mono County, California", "Where to stay"]
+  },
+  {
+    "q": "Compare Carmel Beach with Asilomar State Beach for my dog",
+    "tool": "dogpolicies_compare_places",
+    "args": { "ids": ["carmel-beach", "asilomar-state-beach"] },
+    "facts": ["Carmel Beach vs Asilomar", "\\| Leash \\|"]
+  },
+  {
+    "q": "Which of these two is better for a dog: carmel-beach or carmel-river-state-beach?",
+    "tool": "dogpolicies_compare_places",
+    "args": { "ids": ["carmel-beach", "carmel-river-state-beach"] },
+    "facts": ["\\| Dogs allowed \\|"]
+  },
+  {
+    "q": "Has anything changed around Alameda since September?",
+    "tool": "dogpolicies_changes_near",
+    "args": { "place": "Alameda", "since": "2026-09-01" },
+    "facts": ["since 2026-09-01 within 15 miles of Alameda, CA"]
+  },
+  {
+    "q": "Any rule changes near Lake Tahoe this year?",
+    "tool": "dogpolicies_changes_near",
+    "args": {
+      "place": "South Lake Tahoe",
+      "since": "2026-01-01",
+      "radius_miles": 30
+    },
+    "facts": ["within 30 miles of South Lake Tahoe"]
+  },
+  {
+    "q": "Dog-friendly cabins in June Lake",
+    "tool": "dogpolicies_search_places",
+    "args": { "type": "cabins", "query": "June Lake", "dogs_allowed": true },
+    "facts": ["June Lake"]
+  },
+  {
+    "q": "RV parks in Fresno County that take dogs",
+    "tool": "dogpolicies_search_places",
+    "args": { "type": "campground", "county": "Fresno", "dogs_allowed": true },
+    "facts": ["Fresno County"]
+  },
+  {
+    "q": "Restaurants with a dog-friendly patio in Alameda",
+    "tool": "dogpolicies_search_places",
+    "args": { "type": "restaurant", "query": "Alameda" },
+    "facts": ["Alameda"]
+  }
+]

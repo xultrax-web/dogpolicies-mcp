@@ -15,31 +15,50 @@ export const PACKAGE_VERSION = pkg.version;
 /** The name in the official MCP Registry; package.json `mcpName` must match it. */
 export const REGISTRY_NAME = pkg.mcpName;
 
+/** The brand every citation names; record links come from the data itself. */
+export const BRAND = {
+  name: "DogPolicies",
+  url: "https://dogpolicies.com",
+  license: {
+    name: "CC BY 4.0",
+    url: "https://creativecommons.org/licenses/by/4.0/",
+  },
+};
+
 /** The MCP server identity sent to clients. */
-export const SERVER_NAME = "dogrulebook";
-export const SERVER_TITLE = "Dog Rulebook";
+export const SERVER_NAME = "dogpolicies";
+export const SERVER_TITLE = "DogPolicies";
 
 /** Environment variable names, all prefixed so they never collide. */
 export const ENV = {
-  /** Base URL of the hosted site and API, e.g. https://dogrulebook.com */
-  baseUrl: "DOGRULEBOOK_BASE_URL",
+  /** Base URL of the hosted site and API, e.g. https://dogpolicies.com */
+  baseUrl: "DOGPOLICIES_BASE_URL",
   /** "1" to never touch the network (no snapshot refresh, no reports). */
-  offline: "DOGRULEBOOK_OFFLINE",
+  offline: "DOGPOLICIES_OFFLINE",
   /** Log level on stderr: silent, error, warn, info, debug. */
-  log: "DOGRULEBOOK_LOG",
+  log: "DOGPOLICIES_LOG",
   /** Pin "today" (YYYY-MM-DD) so freshness is reproducible in tests. */
-  today: "DOGRULEBOOK_TODAY",
+  today: "DOGPOLICIES_TODAY",
   /** Directory for the cached snapshot; defaults to the OS cache dir. */
-  cacheDir: "DOGRULEBOOK_CACHE_DIR",
+  cacheDir: "DOGPOLICIES_CACHE_DIR",
   /** Path to a local snapshot file, for development and tests. */
-  snapshot: "DOGRULEBOOK_SNAPSHOT",
+  snapshot: "DOGPOLICIES_SNAPSHOT",
 };
 
-/** Default base URL until the domain is final. Override with DOGRULEBOOK_BASE_URL. */
-export const DEFAULT_BASE_URL = "https://dogrulebook.com";
+/**
+ * The site the server refreshes its data from and files corrections to.
+ * dogpolicies.com is ours (bought 2026-10-31). Until the site is deployed
+ * there, the refresh fails fast and silently and the bundled data serves;
+ * nothing else changes. DOGPOLICIES_BASE_URL overrides; DOGPOLICIES_OFFLINE=1
+ * turns the network off.
+ */
+export const DEFAULT_BASE_URL = "https://dogpolicies.com";
 
-/** Hostnames the package will talk to besides localhost, for the SSRF guard. */
-export const ALLOWED_HOSTS = ["dogrulebook.com", "www.dogrulebook.com"];
+/**
+ * Hostnames the package may talk to besides localhost: our domain only, so a
+ * typo in the environment cannot point the server elsewhere.
+ */
+export const ALLOWED_HOSTS = ["dogpolicies.com", "www.dogpolicies.com"];
 
 /** Where the hosted site publishes the newest snapshot. */
 export const SNAPSHOT_PATH = "/data/mcp-snapshot-v1.json";
@@ -54,7 +73,7 @@ export { SNAPSHOT_SCHEMA } from "./snapshot/build.mjs";
 /** Budgets. Text per tool result is what reaches a model's context. */
 export const LIMITS = {
   resultCharacters: 25_000,
-  fetchTimeoutMs: 8_000,
+  fetchTimeoutMs: 5_000,
   fetchRetries: 2,
   reportsPerMinute: 5,
   maxSnapshotBytes: 64 * 1024 * 1024,

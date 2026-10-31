@@ -3,7 +3,7 @@
 
 import { test } from "node:test";
 import { strict as assert } from "node:assert";
-import { createReporter } from "../src/dogrulebook/report.mjs";
+import { createReporter } from "../src/dogpolicies/report.mjs";
 import { call, testRuntime, text, withClient } from "./helpers.mjs";
 
 test("reporter sends one JSON POST with only the report fields and reads the id back", async () => {
@@ -20,7 +20,7 @@ test("reporter sends one JSON POST with only the report fields and reads the id 
     );
   };
   const r = createReporter({
-    endpoint: "https://dogrulebook.com/corrections/submit",
+    endpoint: "https://dogpolicies.com/corrections/submit",
     fetch,
   });
   assert.ok(r.underLimit());
@@ -117,11 +117,12 @@ test("report_correction tool online: filed, then rate_limited, then unavailable 
   const { join } = await import("node:path");
   const ctx = testRuntime({
     offline: false,
+    baseUrl: "https://dogpolicies.com",
     fetch,
     cacheDir: mkdtempSync(join(tmpdir(), "drb-report-")),
   });
   await withClient(async (client) => {
-    const ok = await call(client, "dogrulebook_report_correction", {
+    const ok = await call(client, "dogpolicies_report_correction", {
       place_id: "carmel-beach",
       message: "The leash rule changed.",
     });
@@ -129,18 +130,18 @@ test("report_correction tool online: filed, then rate_limited, then unavailable 
     assert.equal(ok.structuredContent.report_id, "rep_1");
     assert.match(text(ok), /Filed correction rep_1/);
     mode = "down";
-    const down = await call(client, "dogrulebook_report_correction", {
+    const down = await call(client, "dogpolicies_report_correction", {
       place_id: "carmel-beach",
       message: "The leash rule changed again.",
     });
     assert.equal(down.structuredContent.error.code, "unavailable");
     assert.match(text(down), /#correction/);
     for (let i = 0; i < 3; i++)
-      await call(client, "dogrulebook_report_correction", {
+      await call(client, "dogpolicies_report_correction", {
         place_id: "carmel-beach",
         message: "Repeat report number " + i,
       });
-    const limited = await call(client, "dogrulebook_report_correction", {
+    const limited = await call(client, "dogpolicies_report_correction", {
       place_id: "carmel-beach",
       message: "One more report.",
     });

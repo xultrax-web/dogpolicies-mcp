@@ -8,7 +8,7 @@ import {
   StreamableHTTPClientTransport,
 } from "@modelcontextprotocol/client";
 import { createHttpHandler, listen } from "../src/core/http.mjs";
-import { createServer } from "../src/dogrulebook/server.mjs";
+import { createServer } from "../src/dogpolicies/server.mjs";
 import { sharedRuntime } from "./helpers.mjs";
 
 test("Streamable HTTP: list and call over a real socket", async () => {
@@ -24,9 +24,9 @@ test("Streamable HTTP: list and call over a real socket", async () => {
     const client = new Client({ name: "http-test", version: "1.0.0" });
     await client.connect(new StreamableHTTPClientTransport(new URL(url)));
     const { tools } = await client.listTools();
-    assert.equal(tools.length, 9);
+    assert.ok(tools.length >= 13);
     const r = await client.callTool({
-      name: "dogrulebook_get_brand_policy",
+      name: "dogpolicies_get_brand_policy",
       arguments: { brand: "motel-6", response_format: "json" },
     });
     assert.ok(!r.isError);

@@ -31,7 +31,12 @@ export function checkBaseUrl(input, { allowedHosts = [] } = {}) {
       throw new Error("base URL must be http or https");
   } else {
     if (url.protocol !== "https:") throw new Error("base URL must use https");
-    if (!allowedHosts.includes(host))
+    if (
+      /^[\d.]+$|^\[/.test(host) ||
+      /\.(local|internal|localdomain)$/.test(host)
+    )
+      throw new Error("base URL must name a public host, not an address");
+    if (allowedHosts.length && !allowedHosts.includes(host))
       throw new Error(
         `base URL host ${host} is not allowed; allowed: ${allowedHosts.join(", ")}`,
       );

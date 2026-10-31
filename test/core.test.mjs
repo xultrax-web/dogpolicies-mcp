@@ -97,20 +97,24 @@ test("stableStringify sorts keys at every depth", () => {
 
 test("citations: envelope, license line and footer caveats", () => {
   const c = createCitations({
-    name: "Dog Rulebook",
-    url: "https://dogrulebook.com",
+    name: "DogPolicies",
+    url: "https://dogpolicies.com",
     license: { name: "CC BY 4.0", url: "u" },
   });
   assert.equal(
     c.attribution.attribution_text,
-    "Dog Rulebook, dogrulebook.com, CC BY 4.0",
+    "DogPolicies, dogpolicies.com, CC BY 4.0",
   );
   assert.deepEqual(c.envelope("2026-10-31").as_of, "2026-10-31");
   const f = c.footer(
     [{ freshness: "stale" }, { brand_policy: true }, { osm: true }],
     { osmLine: "OSM" },
   );
-  assert.ok(f.includes(c.licenseLine));
+  assert.ok(f.includes(c.line("")));
+  assert.equal(
+    c.line("2026-10-31"),
+    "DogPolicies, dogpolicies.com, CC BY 4.0, verified 2026-10-31",
+  );
   assert.ok(f.some((l) => /stale or unreadable/.test(l)));
   assert.ok(f.some((l) => /Brand-policy/.test(l)));
   assert.ok(f.includes("OSM"));
@@ -135,7 +139,7 @@ test("freshness is computed from the date, not stored", () => {
   );
   assert.equal(worstFreshness(["fresh", "stale", "due"]), "stale");
   assert.equal(
-    californiaToday({ DOGRULEBOOK_TODAY: "2026-05-05" }),
+    californiaToday({ DOGPOLICIES_TODAY: "2026-05-05" }),
     "2026-05-05",
   );
   assert.match(californiaToday({}), /^\d{4}-\d{2}-\d{2}$/);

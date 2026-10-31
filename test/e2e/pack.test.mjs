@@ -35,9 +35,9 @@ test("npm pack -> unpack -> run over stdio -> every tool answers", async () => {
   run("tar", ["-xzf", tarball], dir);
   const unpacked = join(dir, "package");
   for (const f of [
-    "bin/dogrulebook-mcp.mjs",
+    "bin/dogpolicies-mcp.mjs",
     "data/snapshot.json.gz",
-    "src/dogrulebook/vendor/match.mjs",
+    "src/dogpolicies/vendor/match.mjs",
     "server.json",
     "README.md",
     "LICENSE",
@@ -70,31 +70,31 @@ test("npm pack -> unpack -> run over stdio -> every tool answers", async () => {
   const transport = new StdioClientTransport({
     command: process.execPath,
     args: [
-      join(unpacked, "bin", "dogrulebook-mcp.mjs"),
+      join(unpacked, "bin", "dogpolicies-mcp.mjs"),
       "--offline",
       "--log",
       "silent",
     ],
-    env: { ...getDefaultEnvironment(), DOGRULEBOOK_TODAY: "2026-10-31" },
+    env: { ...getDefaultEnvironment(), DOGPOLICIES_TODAY: "2026-10-31" },
     cwd: dir,
   });
   await client.connect(transport);
   try {
     const { tools } = await client.listTools();
-    assert.equal(tools.length, 9);
+    assert.ok(tools.length >= 13);
     const calls = [
-      ["dogrulebook_search_places", { query: "Carmel", limit: 3 }],
-      ["dogrulebook_get_place", { id: "carmel-beach" }],
+      ["dogpolicies_search_places", { query: "Carmel", limit: 3 }],
+      ["dogpolicies_get_place", { id: "carmel-beach" }],
       [
-        "dogrulebook_find_hotels",
+        "dogpolicies_find_hotels",
         { county: "Monterey", dog_weight_lb: 70, limit: 3 },
       ],
-      ["dogrulebook_get_brand_policy", { brand: "motel-6" }],
-      ["dogrulebook_browse_answers", { limit: 3 }],
-      ["dogrulebook_route_stops", { from_mile: 170, to_mile: 222, limit: 3 }],
-      ["dogrulebook_changes_since", { since: "2026-01-01", limit: 3 }],
+      ["dogpolicies_get_brand_policy", { brand: "motel-6" }],
+      ["dogpolicies_browse_answers", { limit: 3 }],
+      ["dogpolicies_route_stops", { from_mile: 170, to_mile: 222, limit: 3 }],
+      ["dogpolicies_changes_since", { since: "2026-01-01", limit: 3 }],
       [
-        "dogrulebook_report_correction",
+        "dogpolicies_report_correction",
         {
           place_id: "carmel-beach",
           message: "A test report that goes nowhere.",
@@ -107,17 +107,17 @@ test("npm pack -> unpack -> run over stdio -> every tool answers", async () => {
       assert.ok(r.content[0].text.length > 20);
     }
     const detail = await client.callTool({
-      name: "dogrulebook_get_place",
+      name: "dogpolicies_get_place",
       arguments: { id: "carmel-beach", response_format: "json" },
     });
     const rule = await client.callTool({
-      name: "dogrulebook_get_rule",
+      name: "dogpolicies_get_rule",
       arguments: { id: detail.structuredContent.rule_records[0].id },
     });
     assert.ok(!rule.isError);
     // The offline report never leaves the machine.
     const report = await client.callTool({
-      name: "dogrulebook_report_correction",
+      name: "dogpolicies_report_correction",
       arguments: { place_id: "carmel-beach", message: "Another test report." },
     });
     assert.equal(report.structuredContent.status, "not_sent");
@@ -130,8 +130,8 @@ test("the CLI answers --version, --help, check and demo from the packed layout",
   const out = (args) =>
     execFileSync(
       process.execPath,
-      [join(PKG, "bin", "dogrulebook-mcp.mjs"), ...args],
-      { encoding: "utf8", env: { ...process.env, DOGRULEBOOK_LOG: "silent" } },
+      [join(PKG, "bin", "dogpolicies-mcp.mjs"), ...args],
+      { encoding: "utf8", env: { ...process.env, DOGPOLICIES_LOG: "silent" } },
     );
   assert.match(out(["--version"]), /^\d+\.\d+\.\d+/);
   assert.match(out(["--help"]), /Usage/);

@@ -1,31 +1,38 @@
 // The citation and attribution layer. Every text result a model reads starts
-// with a citation sentence and ends with the license line, so repeating the
-// source is the path of least resistance. Source quotes are rendered as data
-// (a quoted block with a label), never as instructions.
+// with a citation sentence and ends with the attribution line, so repeating
+// the source is the path of least resistance. Source quotes are rendered as
+// data (a quoted block with a label), never as instructions.
 
 /**
- * @param {object} site { name, url, license: { name, url } }
+ * @param {object} brand { name, url, license: { name, url } }
+ * @param {object} [options]
+ * @param {() => string} [options.asOf] the current data date, for list footers
  */
-export function createCitations(site) {
-  const host = site.url.replace(/^https?:\/\//, "");
+export function createCitations(brand, { asOf = () => "" } = {}) {
+  const host = brand.url.replace(/^https?:\/\//, "");
   const attribution = {
-    license: site.license,
-    attribution_text: `${site.name}, ${host}, ${site.license.name}`,
-    attribution_url: `${site.url}/`,
-    terms_url: `${site.url}/terms/`,
+    license: brand.license,
+    attribution_text: `${brand.name}, ${host}, ${brand.license.name}`,
+    attribution_url: `${brand.url}/`,
+    terms_url: `${brand.url}/terms/`,
   };
-  const licenseLine = `License: ${attribution.attribution_text}; cite each record with its URL and verified date.`;
+  /** The attribution line: "DogPolicies, dogpolicies.com, CC BY 4.0, verified 2026-10-31". */
+  const line = (date) => `${attribution.attribution_text}, verified ${date}`;
   return {
     attribution,
-    licenseLine,
+    line,
+    /** The attribution line for the data as a whole (list footers). */
+    get licenseLine() {
+      return line(asOf());
+    },
     /** The envelope fields every structured result carries. */
-    envelope: (asOf) => ({ as_of: asOf, ...attribution }),
+    envelope: (date) => ({ as_of: date, ...attribution }),
     /**
-     * Footer lines for a list: the license line and the caveats the page
+     * Footer lines for a list: the attribution line and the caveats the page
      * needs (stale records, brand-only hotels, OSM attribution).
      */
-    footer: (items, { osmLine } = {}) => {
-      const lines = ["", licenseLine];
+    footer: (items, { osmLine, date } = {}) => {
+      const lines = ["", line(date ?? asOf())];
       if (
         items.some(
           (s) => s.freshness === "stale" || s.freshness === "unreadable",

@@ -28,7 +28,7 @@ export const worstFreshness = (states) =>
 /** Today as a California date, or the pinned date from the environment. */
 export function californiaToday(
   env = process.env,
-  envName = "DOGRULEBOOK_TODAY",
+  envName = "DOGPOLICIES_TODAY",
 ) {
   const pinned = env[envName];
   if (pinned && /^\d{4}-\d{2}-\d{2}$/.test(pinned)) return pinned;

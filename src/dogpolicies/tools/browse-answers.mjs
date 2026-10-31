@@ -27,11 +27,11 @@ const AnswersOutput = z.looseObject({
 });
 
 export const browseAnswers = (ctx) => ({
-  name: "dogrulebook_browse_answers",
+  name: "dogpolicies_browse_answers",
   title: "Browse answered questions",
   since: "0.1.0",
   cache: true,
-  description: `Ready-made answers to common questions, such as "Which California national parks allow dogs?" or "Where can dogs go off leash on California beaches?".
+  description: `Ready-made lists that answer common questions (list the state parks, national parks, beaches or hotels that allow dogs), such as "Which California national parks allow dogs?" or "Where can dogs go off leash on California beaches?".
 
 Without a slug, lists every question with its slug and result count. With a slug, returns that question's places.`,
   inputSchema: z.strictObject({
@@ -73,7 +73,7 @@ Without a slug, lists every question with its slug and result count. With a slug
     if (!a)
       return fail(
         "not_found",
-        `Unknown slug "${slug}". Call dogrulebook_browse_answers without a slug to list them.`,
+        `Unknown slug "${slug}". Call dogpolicies_browse_answers without a slug to list them.`,
       );
     const today = ctx.today();
     const places = a.place_ids

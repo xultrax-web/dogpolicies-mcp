@@ -1,0 +1,52 @@
+# Publishes to npm when a tag like v0.2.0 is pushed to this repository.
+#
+# Authentication is npm trusted publishing (OIDC): no NPM_TOKEN secret is
+# needed once the package's "Trusted publisher" on npmjs.com names this
+# repository and this file (publish.yml). Provenance attestations are
+# generated automatically with trusted publishing from a public repository.
+# Until trusted publishing is set up, a granular NPM_TOKEN secret with
+# publish rights works as the fallback (see docs/releasing.md).
+#
+# Nothing here runs on a push to main or a pull request: only on the tag.
+
+name: Publish to npm
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+  id-token: write # OIDC for npm trusted publishing and provenance
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          registry-url: "https://registry.npmjs.org"
+          package-manager-cache: false # never cache in a release build
+
+      - run: npm ci
+
+      - name: Check the tag matches the package version
+        run: |
+          v=$(node -p "require('./package.json').version")
+          test "v$v" = "${GITHUB_REF_NAME}" || { echo "tag ${GITHUB_REF_NAME} != v$v"; exit 1; }
+
+      - run: npm test
+      - run: npm run check
+      - run: npm run test:e2e
+        env:
+          E2E_INSTALL: "1"
+
+      - name: Publish
+        run: npm publish --access public
+        env:
+          # Used only when trusted publishing is not configured; empty otherwise.
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

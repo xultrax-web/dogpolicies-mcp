@@ -7,7 +7,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { readSnapshotFile } from "../src/core/source.mjs";
-import { validateSnapshot } from "../src/dogrulebook/graph.mjs";
+import { validateSnapshot } from "../src/dogpolicies/graph.mjs";
 
 const PKG = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const problems = [];
@@ -28,7 +28,7 @@ else {
   }
 }
 
-const vendored = join(PKG, "src", "dogrulebook", "vendor", "match.mjs");
+const vendored = join(PKG, "src", "dogpolicies", "vendor", "match.mjs");
 const source = resolve(PKG, "..", "..", "src", "lib", "match.mjs");
 if (!existsSync(vendored))
   problems.push("vendor/match.mjs is missing: run `npm run build`");

@@ -45,7 +45,7 @@ export const forMatcher = (p) => ({
 });
 
 export const findHotels = (ctx) => ({
-  name: "dogrulebook_find_hotels",
+  name: "dogpolicies_find_hotels",
   title: "Find hotels for a dog",
   since: "0.1.0",
   cache: true,

@@ -1,8 +1,8 @@
 // Shared test setup: an offline runtime with a pinned date and a silent log,
 // so every test is reproducible and never touches the network.
 
-import { createRuntime } from "../src/dogrulebook/server.mjs";
-import { connectInProcess } from "../src/dogrulebook/connect.mjs";
+import { createRuntime } from "../src/dogpolicies/server.mjs";
+import { connectInProcess } from "../src/dogpolicies/connect.mjs";
 
 export const TODAY = "2026-10-31";
 

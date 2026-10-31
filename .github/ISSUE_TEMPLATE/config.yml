@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: A rule in the data is wrong
+    url: https://dogpolicies.com/corrections/
+    about: Report it on the record's page; a person re-reads the official source.
+  - name: Security vulnerability
+    url: https://github.com/xultrax-web/dogpolicies-mcp/security/advisories/new
+    about: Please report privately.

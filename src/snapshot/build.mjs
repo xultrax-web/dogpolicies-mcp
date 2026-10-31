@@ -23,6 +23,9 @@ function placeRecord(p, { regionName, tagsOf, abs, placePath, ruleJson }) {
     county: p.county ?? null,
     state: p.state,
     regionId: p.regionId ?? null,
+    // Areas (Region > Area > City > Place) land on the `areas` branch; the
+    // fields are optional here so the snapshot format needs no bump.
+    area_id: p.areaId ?? null,
     region: p.regionId ? (regionName[p.regionId] ?? null) : null,
     status: p.answer.status,
     answer: p.answer.headline,
@@ -128,6 +131,49 @@ function brandRecord(b, { abs, brandPath }) {
 }
 
 /**
+ * A gazetteer built from the places themselves: every city and county that
+ * has places with coordinates, with the centroid of those places. It lets a
+ * tool take "Monterey" or "Washoe County, NV" instead of a latitude.
+ */
+export function towns(places) {
+  const acc = new Map();
+  const add = (key, entry, p) => {
+    const t = acc.get(key) ?? { ...entry, lat: 0, lon: 0, places: 0 };
+    t.lat += p.geo.lat;
+    t.lon += p.geo.lon;
+    t.places++;
+    acc.set(key, t);
+  };
+  for (const p of places) {
+    if (!p.geo) continue;
+    if (p.city)
+      add(
+        `city:${p.city}|${p.state}`,
+        {
+          name: p.city,
+          kind: "city",
+          county: p.county ?? null,
+          state: p.state,
+        },
+        p,
+      );
+    if (p.county)
+      add(
+        `county:${p.county}|${p.state}`,
+        { name: p.county, kind: "county", county: p.county, state: p.state },
+        p,
+      );
+  }
+  return [...acc.values()]
+    .map((t) => ({
+      ...t,
+      lat: Math.round((t.lat / t.places) * 1e4) / 1e4,
+      lon: Math.round((t.lon / t.places) * 1e4) / 1e4,
+    }))
+    .sort((a, b) => b.places - a.places || a.name.localeCompare(b.name));
+}
+
+/**
  * @param {object} graph the loaded graph (loadGraph())
  * @param {object} deps helpers from the repository
  * @param {object} deps.site
@@ -156,6 +202,12 @@ export function buildSnapshot(graph, deps) {
       tagline: site.tagline,
     },
     regions: graph.regions.map((r) => ({ id: r.id, name: r.name })),
+    areas: (graph.areas ?? []).map((a) => ({
+      id: a.id,
+      name: a.name,
+      regionId: a.regionId ?? null,
+    })),
+    towns: towns(graph.places),
     places: graph.places.map((p) => placeRecord(p, ctx)),
     brands: graph.brands.map((b) => brandRecord(b, ctx)),
     answers: answers.map((a) => ({

@@ -3,11 +3,11 @@ import { READ_ONLY } from "../../core/server.mjs";
 import { Envelope, pageSchema, result } from "./common.mjs";
 
 export const changesSince = (ctx) => ({
-  name: "dogrulebook_changes_since",
+  name: "dogpolicies_changes_since",
   title: "Changes since a date",
   since: "0.1.0",
   cache: true,
-  description: `Verification events and rule changes on or after a date, newest first, so an agent can poll cheaply instead of re-reading every record. Each entry names the place, what happened (confirmed, changed, source_gone, blocked, disputed), who checked, and links the record.`,
+  description: `Everything that changed in the whole data set since a date: verification events and rule changes everywhere, newest first, so an agent can poll cheaply instead of re-reading every record. Each entry names the place, what happened (confirmed, changed, source_gone, blocked, disputed), who checked, and links the record.`,
   inputSchema: z.strictObject({
     since: z
       .string()

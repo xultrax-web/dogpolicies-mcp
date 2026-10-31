@@ -1,4 +1,4 @@
-// Shared pieces of the Dog Rulebook tools: the place summary every list
+// Shared pieces of the DogPolicies tools: the place summary every list
 // returns, the markdown line for it, the input schema fragments, location
 // filtering and the list responder. A tool file imports from here and from
 // the core; it never reaches into the snapshot format on its own.
@@ -163,6 +163,14 @@ export function locationSchema(graph) {
       .describe(
         "Region id, e.g. central-coast, san-diego or reno-tahoe-nevada",
       ),
+    area: z
+      .string()
+      .min(2)
+      .max(60)
+      .optional()
+      .describe(
+        "Area id inside a region (a tourist area such as a valley, coast or metro), when the data has areas",
+      ),
     near: z
       .strictObject({
         lat: z
@@ -231,9 +239,10 @@ export const stayCriteriaSchema = {
 };
 
 /** Filters by state, county, region and distance; "near" sorts by distance and adds _distance. */
-export function filterByLocation(items, { state, county, region, near }) {
+export function filterByLocation(items, { state, county, region, area, near }) {
   let out = items;
   if (state) out = out.filter((p) => p.state === state);
+  if (area) out = out.filter((p) => p.area_id === area);
   if (county)
     out = out.filter(
       (p) => norm(p.county) === norm(county.replace(/ county$/i, "")),
@@ -273,3 +282,33 @@ export function listResponse(
 }
 
 export { result };
+
+/**
+ * Resolves "Monterey", "Monterey, CA", "Washoe County NV" or "Las Vegas" to a
+ * point from the gazetteer: cities first, then counties; a state suffix
+ * narrows it. Returns { name, kind, state, county, lat, lon } or null.
+ */
+export function resolveTown(graph, text) {
+  const raw = norm(text).replace(/[.,]/g, " ").replace(/\s+/g, " ").trim();
+  if (!raw) return null;
+  let state = null;
+  let name = raw;
+  const m = raw.match(/^(.*?)\s+(ca|nv|california|nevada)$/);
+  if (m) {
+    name = m[1].trim();
+    state = m[2].startsWith("ca") ? "CA" : "NV";
+  }
+  name = name.replace(/\s+county$/, "");
+  const towns = graph.towns.filter((t) => !state || t.state === state);
+  const exact = (kind) =>
+    towns.find((t) => t.kind === kind && norm(t.name) === name);
+  const starts = (kind) =>
+    towns.find((t) => t.kind === kind && norm(t.name).startsWith(name));
+  return (
+    exact("city") ??
+    exact("county") ??
+    starts("city") ??
+    starts("county") ??
+    null
+  );
+}

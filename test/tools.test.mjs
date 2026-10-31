@@ -6,17 +6,21 @@ import { strict as assert } from "node:assert";
 import { call, sharedRuntime, text, withClient } from "./helpers.mjs";
 
 const LICENSE =
-  /^License: Dog Rulebook, dogrulebook\.com, CC BY 4\.0; cite each record/m;
+  /^DogPolicies, dogpolicies\.com, CC BY 4\.0, verified \d{4}-\d{2}-\d{2}$/m;
 const NAMES = [
-  "dogrulebook_browse_answers",
-  "dogrulebook_changes_since",
-  "dogrulebook_find_hotels",
-  "dogrulebook_get_brand_policy",
-  "dogrulebook_get_place",
-  "dogrulebook_get_rule",
-  "dogrulebook_report_correction",
-  "dogrulebook_route_stops",
-  "dogrulebook_search_places",
+  "dogpolicies_browse_answers",
+  "dogpolicies_changes_near",
+  "dogpolicies_changes_since",
+  "dogpolicies_compare_places",
+  "dogpolicies_find_hotels",
+  "dogpolicies_get_brand_policy",
+  "dogpolicies_get_place",
+  "dogpolicies_get_rule",
+  "dogpolicies_near",
+  "dogpolicies_plan_trip",
+  "dogpolicies_report_correction",
+  "dogpolicies_route_stops",
+  "dogpolicies_search_places",
 ];
 
 test("server: identity, instructions, tool list, annotations, empty resources and prompts", () =>
@@ -35,7 +39,7 @@ test("server: identity, instructions, tool list, annotations, empty resources an
       assert.equal(typeof t.annotations.openWorldHint, "boolean");
       assert.equal(
         t.annotations.readOnlyHint,
-        t.name !== "dogrulebook_report_correction",
+        t.name !== "dogpolicies_report_correction",
       );
       assert.equal(t.inputSchema.type, "object");
       assert.equal(
@@ -45,13 +49,15 @@ test("server: identity, instructions, tool list, annotations, empty resources an
       );
       assert.ok(t.outputSchema, `${t.name} has an output schema`);
     }
-    assert.deepEqual((await client.listResources()).resources, []);
-    assert.deepEqual((await client.listPrompts()).prompts, []);
+    const { resources } = await client.listResources();
+    assert.ok(resources.some((r) => r.uri === "dogpolicies://about"));
+    const { prompts } = await client.listPrompts();
+    assert.ok(prompts.length >= 5);
   }));
 
 test("search_places: name query, citation first, license last, both formats", () =>
   withClient(async (client) => {
-    const r = await call(client, "dogrulebook_search_places", {
+    const r = await call(client, "dogpolicies_search_places", {
       query: "Point Lobos State Natural",
     });
     assert.ok(!r.isError);
@@ -59,12 +65,12 @@ test("search_places: name query, citation first, license last, both formats", ()
     assert.match(md.split("\n")[0], /^# \d+ places? found/);
     assert.match(
       md.split("\n")[2],
-      /^- Point Lobos.*Source: .* checked \d{4}-\d{2}-\d{2}\. Dog Rulebook record: https:\/\/dogrulebook\.com\/places\//,
+      /^- Point Lobos.*Source: .* checked \d{4}-\d{2}-\d{2}\. (Dog Rulebook|DogPolicies) record: https:\/\/(dogrulebook|dogpolicies)\.com\/places\//,
     );
     assert.match(md, LICENSE);
     assert.equal(r.structuredContent.places[0].status, "no");
     assert.equal(r.structuredContent.as_of, sharedRuntime().graph.as_of);
-    const j = await call(client, "dogrulebook_search_places", {
+    const j = await call(client, "dogpolicies_search_places", {
       query: "Point Lobos State Natural",
       response_format: "json",
     });
@@ -73,7 +79,7 @@ test("search_places: name query, citation first, license last, both formats", ()
 
 test("search_places: filters by type, off-leash, near (sorted by distance), county, state, dogs_allowed", () =>
   withClient(async (client) => {
-    const sd = await call(client, "dogrulebook_search_places", {
+    const sd = await call(client, "dogpolicies_search_places", {
       type: "beach",
       off_leash: true,
       near: { lat: 32.72, lon: -117.16, radius_miles: 20 },
@@ -87,7 +93,7 @@ test("search_places: filters by type, off-leash, near (sorted by distance), coun
       ),
     );
     assert.ok(places.every((p) => p.type === "beach"));
-    const marin = await call(client, "dogrulebook_search_places", {
+    const marin = await call(client, "dogpolicies_search_places", {
       type: "park",
       county: "Marin County",
       dogs_allowed: true,
@@ -99,7 +105,7 @@ test("search_places: filters by type, off-leash, near (sorted by distance), coun
         ["yes", "yes_restricted"].includes(p.status),
       ),
     );
-    const nv = await call(client, "dogrulebook_search_places", {
+    const nv = await call(client, "dogpolicies_search_places", {
       state: "NV",
       dogs_allowed: false,
       response_format: "json",
@@ -109,7 +115,7 @@ test("search_places: filters by type, off-leash, near (sorted by distance), coun
         (p) => p.state === "NV" && p.status === "no",
       ),
     );
-    const none = await call(client, "dogrulebook_search_places", {
+    const none = await call(client, "dogpolicies_search_places", {
       query: "zzzz-no-such-place",
     });
     assert.ok(!none.isError);
@@ -118,14 +124,14 @@ test("search_places: filters by type, off-leash, near (sorted by distance), coun
 
 test("search_places: pagination is consistent and the text fits the budget", () =>
   withClient(async (client) => {
-    const a = await call(client, "dogrulebook_search_places", {
+    const a = await call(client, "dogpolicies_search_places", {
       type: "park",
       limit: 50,
       response_format: "json",
     });
     assert.ok(a.structuredContent.has_more);
     assert.ok(text(a).length <= 25_000);
-    const b = await call(client, "dogrulebook_search_places", {
+    const b = await call(client, "dogpolicies_search_places", {
       type: "park",
       limit: 50,
       offset: a.structuredContent.next_offset,
@@ -137,7 +143,7 @@ test("search_places: pagination is consistent and the text fits the budget", () 
       b.structuredContent.places.every((p) => !ids.has(p.id)),
       "no overlap between pages",
     );
-    const md = await call(client, "dogrulebook_search_places", {
+    const md = await call(client, "dogpolicies_search_places", {
       type: "park",
       limit: 50,
     });
@@ -155,7 +161,7 @@ test("search_places: invalid input is rejected before the handler runs", () =>
       { nope: 1 },
     ]) {
       const r = await client
-        .callTool({ name: "dogrulebook_search_places", arguments: args })
+        .callTool({ name: "dogpolicies_search_places", arguments: args })
         .catch((e) => ({ isError: true, thrown: e }));
       assert.ok(r.isError, `rejects ${JSON.stringify(args)}`);
     }
@@ -163,7 +169,7 @@ test("search_places: invalid input is rejected before the handler runs", () =>
 
 test("get_place: full record with sources, rule ids, not_stated, quote marked as data", () =>
   withClient(async (client) => {
-    const r = await call(client, "dogrulebook_get_place", {
+    const r = await call(client, "dogpolicies_get_place", {
       id: "carmel-beach",
     });
     const md = text(r);
@@ -181,7 +187,10 @@ test("get_place: full record with sources, rule ids, not_stated, quote marked as
     );
     assert.ok(Array.isArray(d.not_stated));
     assert.ok(d.sources[0].url.startsWith("http"));
-    assert.equal(d.url, "https://dogrulebook.com/places/carmel-beach/");
+    assert.equal(
+      d.url,
+      `${sharedRuntime().graph.site.url}/places/carmel-beach/`,
+    );
     for (const id of [
       "nope",
       "../etc/passwd",
@@ -189,7 +198,7 @@ test("get_place: full record with sources, rule ids, not_stated, quote marked as
       "a".repeat(121),
     ]) {
       const e = await client
-        .callTool({ name: "dogrulebook_get_place", arguments: { id } })
+        .callTool({ name: "dogpolicies_get_place", arguments: { id } })
         .catch(() => ({ isError: true }));
       assert.ok(e.isError, `rejects ${id}`);
       if (e.structuredContent)
@@ -200,14 +209,14 @@ test("get_place: full record with sources, rule ids, not_stated, quote marked as
 test("get_place: an OpenStreetMap hotel carries the ODbL attribution", () =>
   withClient(async (client, ctx) => {
     const osm = ctx.graph.places.find((p) => p.osm);
-    const r = await call(client, "dogrulebook_get_place", { id: osm.id });
+    const r = await call(client, "dogpolicies_get_place", { id: osm.id });
     assert.match(text(r), /OpenStreetMap contributors/);
     assert.equal(r.structuredContent.record_license, "ODbL-1.0");
   }));
 
 test("find_hotels: verdicts, fee arithmetic spelled out, cheapest first, exclusions counted", () =>
   withClient(async (client) => {
-    const r = await call(client, "dogrulebook_find_hotels", {
+    const r = await call(client, "dogpolicies_find_hotels", {
       county: "Monterey",
       dog_weight_lb: 70,
       nights: 2,
@@ -230,7 +239,7 @@ test("find_hotels: verdicts, fee arithmetic spelled out, cheapest first, exclusi
       [...known].sort((a, b) => a - b),
     );
     const md = text(
-      await call(client, "dogrulebook_find_hotels", {
+      await call(client, "dogpolicies_find_hotels", {
         county: "Monterey",
         dog_weight_lb: 70,
         nights: 2,
@@ -241,7 +250,7 @@ test("find_hotels: verdicts, fee arithmetic spelled out, cheapest first, exclusi
       /^# \d+ match, \d+ possible, \d+ excluded \(70 lb dog, 2 nights\)/,
     );
     assert.match(md, /Pet fee: /);
-    const strict = await call(client, "dogrulebook_find_hotels", {
+    const strict = await call(client, "dogpolicies_find_hotels", {
       county: "Monterey",
       include_possible: false,
       response_format: "json",
@@ -249,7 +258,7 @@ test("find_hotels: verdicts, fee arithmetic spelled out, cheapest first, exclusi
     assert.ok(
       strict.structuredContent.hotels.every((h) => h.verdict === "match"),
     );
-    const budget = await call(client, "dogrulebook_find_hotels", {
+    const budget = await call(client, "dogpolicies_find_hotels", {
       query: "Motel 6",
       max_total_fee: 0,
       response_format: "json",
@@ -263,7 +272,7 @@ test("find_hotels: verdicts, fee arithmetic spelled out, cheapest first, exclusi
 
 test("find_hotels: a chain hotel's inherited policy is flagged", () =>
   withClient(async (client) => {
-    const r = await call(client, "dogrulebook_find_hotels", {
+    const r = await call(client, "dogpolicies_find_hotels", {
       brand: "motel-6",
       response_format: "json",
       limit: 5,
@@ -276,7 +285,7 @@ test("find_hotels: a chain hotel's inherited policy is flagged", () =>
     );
     assert.match(
       text(
-        await call(client, "dogrulebook_find_hotels", {
+        await call(client, "dogpolicies_find_hotels", {
           brand: "motel-6",
           limit: 5,
         }),
@@ -287,10 +296,10 @@ test("find_hotels: a chain hotel's inherited policy is flagged", () =>
 
 test("get_brand_policy: by id and by name, with exceptions and counts; unknown brand lists the covered ones", () =>
   withClient(async (client) => {
-    const a = await call(client, "dogrulebook_get_brand_policy", {
+    const a = await call(client, "dogpolicies_get_brand_policy", {
       brand: "red-roof",
     });
-    const b = await call(client, "dogrulebook_get_brand_policy", {
+    const b = await call(client, "dogpolicies_get_brand_policy", {
       brand: "Red Roof",
       response_format: "json",
     });
@@ -299,7 +308,7 @@ test("get_brand_policy: by id and by name, with exceptions and counts; unknown b
     assert.match(text(a), /^# .* pet policy\n/);
     assert.match(text(a), /\d+ California and \d+ Nevada properties/);
     assert.match(text(a), LICENSE);
-    const e = await call(client, "dogrulebook_get_brand_policy", {
+    const e = await call(client, "dogpolicies_get_brand_policy", {
       brand: "Nonesuch Inns",
     });
     assert.equal(e.structuredContent.error.code, "not_found");
@@ -308,7 +317,7 @@ test("get_brand_policy: by id and by name, with exceptions and counts; unknown b
 
 test("browse_answers: lists questions, then a question's places; unknown slug errors", () =>
   withClient(async (client) => {
-    const list = await call(client, "dogrulebook_browse_answers", {
+    const list = await call(client, "dogpolicies_browse_answers", {
       response_format: "json",
     });
     assert.ok(list.structuredContent.questions.length > 50);
@@ -316,7 +325,7 @@ test("browse_answers: lists questions, then a question's places; unknown slug er
       (x) => x.slug === "off-leash-dog-beaches-california",
     );
     assert.ok(q, "the off-leash beaches question exists");
-    const places = await call(client, "dogrulebook_browse_answers", {
+    const places = await call(client, "dogpolicies_browse_answers", {
       slug: q.slug,
       limit: 50,
       response_format: "json",
@@ -324,10 +333,10 @@ test("browse_answers: lists questions, then a question's places; unknown slug er
     assert.equal(places.structuredContent.total, q.results);
     assert.equal(places.structuredContent.url, q.url);
     assert.match(
-      text(await call(client, "dogrulebook_browse_answers", { slug: q.slug })),
+      text(await call(client, "dogpolicies_browse_answers", { slug: q.slug })),
       /^# Where/,
     );
-    const e = await call(client, "dogrulebook_browse_answers", {
+    const e = await call(client, "dogpolicies_browse_answers", {
       slug: "no-such-question",
     });
     assert.equal(e.structuredContent.error.code, "not_found");
@@ -335,7 +344,7 @@ test("browse_answers: lists questions, then a question's places; unknown slug er
 
 test("route_stops: miles in driving order, direction reversal, a start point, kinds, weight check", () =>
   withClient(async (client) => {
-    const north = await call(client, "dogrulebook_route_stops", {
+    const north = await call(client, "dogpolicies_route_stops", {
       from_mile: 170,
       to_mile: 222,
       limit: 50,
@@ -348,7 +357,7 @@ test("route_stops: miles in driving order, direction reversal, a start point, ki
       [...miles].sort((a, b) => a - b),
     );
     assert.ok(miles.every((m) => m >= 170 && m <= 222));
-    const south = await call(client, "dogrulebook_route_stops", {
+    const south = await call(client, "dogpolicies_route_stops", {
       from_mile: 222,
       to_mile: 170,
       direction: "south",
@@ -361,7 +370,7 @@ test("route_stops: miles in driving order, direction reversal, a start point, ki
       [...sm].sort((a, b) => b - a),
     );
     assert.equal(south.structuredContent.direction, "south");
-    const la = await call(client, "dogrulebook_route_stops", {
+    const la = await call(client, "dogpolicies_route_stops", {
       near: { lat: 34.05, lon: -118.24 },
       dog_weight_lb: 70,
       limit: 5,
@@ -372,7 +381,7 @@ test("route_stops: miles in driving order, direction reversal, a start point, ki
         la.structuredContent.from_mile < 200,
       `from_mile ${la.structuredContent.from_mile}`,
     );
-    const rest = await call(client, "dogrulebook_route_stops", {
+    const rest = await call(client, "dogpolicies_route_stops", {
       kinds: ["rest_area"],
       limit: 50,
       response_format: "json",
@@ -380,7 +389,7 @@ test("route_stops: miles in driving order, direction reversal, a start point, ki
     assert.ok(
       rest.structuredContent.stops.every((s) => s.type === "rest_area"),
     );
-    const nv = await call(client, "dogrulebook_route_stops", {
+    const nv = await call(client, "dogpolicies_route_stops", {
       route: "i-80-nevada",
       near: { lat: 39.53, lon: -119.81 },
       direction: "east",
@@ -391,7 +400,7 @@ test("route_stops: miles in driving order, direction reversal, a start point, ki
     assert.match(nv.structuredContent.guide, /\/road-trips\/i-80-nevada\/$/);
     assert.match(
       text(
-        await call(client, "dogrulebook_route_stops", {
+        await call(client, "dogpolicies_route_stops", {
           from_mile: 170,
           to_mile: 222,
         }),
@@ -402,16 +411,16 @@ test("route_stops: miles in driving order, direction reversal, a start point, ki
 
 test("get_rule: a rule by id with its place citation, permalink and freshness; bad ids are not_found", () =>
   withClient(async (client) => {
-    const d = await call(client, "dogrulebook_get_place", {
+    const d = await call(client, "dogpolicies_get_place", {
       id: "carmel-beach",
       response_format: "json",
     });
     const id = d.structuredContent.rule_records[0].id;
-    const r = await call(client, "dogrulebook_get_rule", { id });
+    const r = await call(client, "dogpolicies_get_rule", { id });
     assert.equal(r.structuredContent.rule.id, id);
     assert.match(
       r.structuredContent.rule.permalink,
-      /^https:\/\/dogrulebook\.com\/places\/carmel-beach\/#rule-/,
+      /^https:\/\/(dogrulebook|dogpolicies)\.com\/places\/carmel-beach\/#rule-/,
     );
     assert.match(text(r).split("\n")[0], /^Carmel Beach/);
     assert.match(
@@ -419,14 +428,14 @@ test("get_rule: a rule by id with its place citation, permalink and freshness; b
       /Confidence: stated\. Verified \d{4}-\d{2}-\d{2}; re-check due \d{4}-\d{2}-\d{2}; freshness (fresh|due|stale|unreadable)\./,
     );
     for (const bad of ["rul_nope_fee", "rul_../x_fee", "123456"]) {
-      const e = await call(client, "dogrulebook_get_rule", { id: bad });
+      const e = await call(client, "dogpolicies_get_rule", { id: bad });
       assert.equal(e.structuredContent.error.code, "not_found");
     }
   }));
 
 test("changes_since: events newest first, outcome filter, rule changes, paging", () =>
   withClient(async (client) => {
-    const r = await call(client, "dogrulebook_changes_since", {
+    const r = await call(client, "dogpolicies_changes_since", {
       since: "2026-01-01",
       limit: 50,
       response_format: "json",
@@ -440,7 +449,7 @@ test("changes_since: events newest first, outcome filter, rule changes, paging",
       ),
     );
     assert.ok(r.structuredContent.rule_changes.length > 0);
-    const only = await call(client, "dogrulebook_changes_since", {
+    const only = await call(client, "dogpolicies_changes_since", {
       since: "2026-01-01",
       outcome: "confirmed",
       response_format: "json",
@@ -448,13 +457,13 @@ test("changes_since: events newest first, outcome filter, rule changes, paging",
     assert.ok(
       only.structuredContent.events.every((e) => e.outcome === "confirmed"),
     );
-    const future = await call(client, "dogrulebook_changes_since", {
+    const future = await call(client, "dogpolicies_changes_since", {
       since: "2099-01-01",
     });
     assert.equal(future.structuredContent.total, 0);
     const bad = await client
       .callTool({
-        name: "dogrulebook_changes_since",
+        name: "dogpolicies_changes_since",
         arguments: { since: "yesterday" },
       })
       .catch(() => ({ isError: true }));
@@ -463,7 +472,7 @@ test("changes_since: events newest first, outcome filter, rule changes, paging",
 
 test("report_correction (offline): validates the place, never sends, returns the web form URL", () =>
   withClient(async (client) => {
-    const r = await call(client, "dogrulebook_report_correction", {
+    const r = await call(client, "dogpolicies_report_correction", {
       place_id: "carmel-beach",
       message: "The leash rule changed last month.",
     });
@@ -471,17 +480,17 @@ test("report_correction (offline): validates the place, never sends, returns the
     assert.equal(r.structuredContent.status, "not_sent");
     assert.equal(
       r.structuredContent.form_url,
-      "https://dogrulebook.com/places/carmel-beach/#correction",
+      `${sharedRuntime().graph.site.url}/places/carmel-beach/#correction`,
     );
-    assert.match(text(r), /running offline/);
-    const e = await call(client, "dogrulebook_report_correction", {
+    assert.match(text(r), /no site configured/);
+    const e = await call(client, "dogpolicies_report_correction", {
       place_id: "no-such-place",
       message: "Something is wrong here.",
     });
     assert.equal(e.structuredContent.error.code, "not_found");
     const short = await client
       .callTool({
-        name: "dogrulebook_report_correction",
+        name: "dogpolicies_report_correction",
         arguments: { place_id: "carmel-beach", message: "hi" },
       })
       .catch(() => ({ isError: true }));
@@ -491,11 +500,11 @@ test("report_correction (offline): validates the place, never sends, returns the
 test("determinism: the same call gives byte-identical text, and the cache serves the repeat", () =>
   withClient(async (client, ctx) => {
     const { server } = { server: null };
-    const a = await call(client, "dogrulebook_search_places", {
+    const a = await call(client, "dogpolicies_search_places", {
       county: "Monterey",
       type: "beach",
     });
-    const b = await call(client, "dogrulebook_search_places", {
+    const b = await call(client, "dogpolicies_search_places", {
       county: "Monterey",
       type: "beach",
     });
@@ -509,14 +518,14 @@ test("freshness follows the date the server is asked on", async () => {
   const { testRuntime } = await import("./helpers.mjs");
   const later = testRuntime({ today: () => "2028-01-01" });
   await withClient(async (client) => {
-    const r = await call(client, "dogrulebook_get_place", {
+    const r = await call(client, "dogpolicies_get_place", {
       id: "carmel-beach",
       response_format: "json",
     });
     assert.equal(r.structuredContent.freshness, "stale");
     assert.match(
       text(
-        await call(client, "dogrulebook_search_places", {
+        await call(client, "dogpolicies_search_places", {
           query: "Carmel Beach",
         }),
       ),

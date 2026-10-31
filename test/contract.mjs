@@ -3,7 +3,7 @@
 // file and by contracts.test.mjs to compare against it.
 
 import * as z from "zod/v4";
-import { toolDefinitions } from "../src/dogrulebook/server.mjs";
+import { toolDefinitions } from "../src/dogpolicies/server.mjs";
 import { testRuntime } from "./helpers.mjs";
 
 const fields = (schema) => {

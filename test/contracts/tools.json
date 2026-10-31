@@ -1,5 +1,5 @@
 {
-  "dogrulebook_search_places": {
+  "dogpolicies_search_places": {
     "title": "Search places",
     "annotations": {
       "readOnlyHint": true,
@@ -10,6 +10,7 @@
     "input": {
       "required": [],
       "properties": [
+        "area",
         "county",
         "dogs_allowed",
         "limit",
@@ -50,7 +51,54 @@
     "since": "0.1.0",
     "deprecated": null
   },
-  "dogrulebook_get_place": {
+  "dogpolicies_near": {
+    "title": "What is near a town",
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    },
+    "input": {
+      "required": [],
+      "properties": [
+        "dogs_allowed_only",
+        "near",
+        "per_type",
+        "place",
+        "radius_miles",
+        "response_format",
+        "types"
+      ]
+    },
+    "output": {
+      "required": [
+        "as_of",
+        "attribution_text",
+        "attribution_url",
+        "center",
+        "groups",
+        "label",
+        "license",
+        "radius_miles",
+        "total"
+      ],
+      "properties": [
+        "as_of",
+        "attribution_text",
+        "attribution_url",
+        "center",
+        "groups",
+        "label",
+        "license",
+        "radius_miles",
+        "total"
+      ]
+    },
+    "since": "0.2.0",
+    "deprecated": null
+  },
+  "dogpolicies_get_place": {
     "title": "Get place details",
     "annotations": {
       "readOnlyHint": true,
@@ -119,7 +167,93 @@
     "since": "0.1.0",
     "deprecated": null
   },
-  "dogrulebook_find_hotels": {
+  "dogpolicies_compare_places": {
+    "title": "Compare places side by side",
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    },
+    "input": {
+      "required": ["ids"],
+      "properties": ["ids", "response_format"]
+    },
+    "output": {
+      "required": [
+        "as_of",
+        "attribution_text",
+        "attribution_url",
+        "license",
+        "places",
+        "rows"
+      ],
+      "properties": [
+        "as_of",
+        "attribution_text",
+        "attribution_url",
+        "license",
+        "places",
+        "rows"
+      ]
+    },
+    "since": "0.2.0",
+    "deprecated": null
+  },
+  "dogpolicies_plan_trip": {
+    "title": "Plan a trip with a dog",
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    },
+    "input": {
+      "required": [],
+      "properties": [
+        "dog_weight_lb",
+        "dogs",
+        "include_possible",
+        "max_total_fee",
+        "near",
+        "nights",
+        "per_section",
+        "place",
+        "radius_miles",
+        "response_format",
+        "stay_types"
+      ]
+    },
+    "output": {
+      "required": [
+        "as_of",
+        "asked",
+        "attribution_text",
+        "attribution_url",
+        "label",
+        "license",
+        "outings",
+        "radius_miles",
+        "stay_counts",
+        "stays"
+      ],
+      "properties": [
+        "as_of",
+        "asked",
+        "attribution_text",
+        "attribution_url",
+        "label",
+        "license",
+        "outings",
+        "radius_miles",
+        "stay_counts",
+        "stays"
+      ]
+    },
+    "since": "0.2.0",
+    "deprecated": null
+  },
+  "dogpolicies_find_hotels": {
     "title": "Find hotels for a dog",
     "annotations": {
       "readOnlyHint": true,
@@ -130,6 +264,7 @@
     "input": {
       "required": [],
       "properties": [
+        "area",
         "brand",
         "county",
         "dog_weight_lb",
@@ -175,7 +310,7 @@
     "since": "0.1.0",
     "deprecated": null
   },
-  "dogrulebook_get_brand_policy": {
+  "dogpolicies_get_brand_policy": {
     "title": "Get hotel brand pet policy",
     "annotations": {
       "readOnlyHint": true,
@@ -220,7 +355,7 @@
     "since": "0.1.0",
     "deprecated": null
   },
-  "dogrulebook_browse_answers": {
+  "dogpolicies_browse_answers": {
     "title": "Browse answered questions",
     "annotations": {
       "readOnlyHint": true,
@@ -253,7 +388,7 @@
     "since": "0.1.0",
     "deprecated": null
   },
-  "dogrulebook_route_stops": {
+  "dogpolicies_route_stops": {
     "title": "Dog stops along a highway",
     "annotations": {
       "readOnlyHint": true,
@@ -311,7 +446,7 @@
     "since": "0.1.0",
     "deprecated": null
   },
-  "dogrulebook_get_rule": {
+  "dogpolicies_get_rule": {
     "title": "Get one rule by id",
     "annotations": {
       "readOnlyHint": true,
@@ -344,7 +479,7 @@
     "since": "0.1.0",
     "deprecated": null
   },
-  "dogrulebook_changes_since": {
+  "dogpolicies_changes_since": {
     "title": "Changes since a date",
     "annotations": {
       "readOnlyHint": true,
@@ -383,7 +518,57 @@
     "since": "0.1.0",
     "deprecated": null
   },
-  "dogrulebook_report_correction": {
+  "dogpolicies_changes_near": {
+    "title": "What changed near a town",
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    },
+    "input": {
+      "required": ["since"],
+      "properties": [
+        "limit",
+        "near",
+        "offset",
+        "outcome",
+        "place",
+        "radius_miles",
+        "response_format",
+        "since"
+      ]
+    },
+    "output": {
+      "required": [
+        "as_of",
+        "attribution_text",
+        "attribution_url",
+        "count",
+        "events",
+        "has_more",
+        "label",
+        "license",
+        "radius_miles",
+        "total"
+      ],
+      "properties": [
+        "as_of",
+        "attribution_text",
+        "attribution_url",
+        "count",
+        "events",
+        "has_more",
+        "label",
+        "license",
+        "radius_miles",
+        "total"
+      ]
+    },
+    "since": "0.2.0",
+    "deprecated": null
+  },
+  "dogpolicies_report_correction": {
     "title": "Report a correction",
     "annotations": {
       "readOnlyHint": false,

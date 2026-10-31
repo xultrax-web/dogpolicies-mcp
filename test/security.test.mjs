@@ -5,20 +5,20 @@
 import { test } from "node:test";
 import { strict as assert } from "node:assert";
 import { checkBaseUrl, insideDir, isSafeId } from "../src/core/safety.mjs";
-import { readConfig } from "../src/dogrulebook/server.mjs";
+import { readConfig } from "../src/dogpolicies/server.mjs";
 import { createHttpHandler } from "../src/core/http.mjs";
 import { call, sharedRuntime, text, withClient } from "./helpers.mjs";
-import { createServer } from "../src/dogrulebook/server.mjs";
+import { createServer } from "../src/dogpolicies/server.mjs";
 
 test("base URL: https to an allowed host or http(s) to localhost only", () => {
-  const allowed = ["dogrulebook.com", "www.dogrulebook.com"];
+  const allowed = ["dogpolicies.com", "www.dogpolicies.com"];
   assert.equal(
-    checkBaseUrl("https://dogrulebook.com/", { allowedHosts: allowed }),
-    "https://dogrulebook.com",
+    checkBaseUrl("https://dogpolicies.com/", { allowedHosts: allowed }),
+    "https://dogpolicies.com",
   );
   assert.equal(
-    checkBaseUrl("https://www.dogrulebook.com/sub/", { allowedHosts: allowed }),
-    "https://www.dogrulebook.com/sub",
+    checkBaseUrl("https://www.dogpolicies.com/sub/", { allowedHosts: allowed }),
+    "https://www.dogpolicies.com/sub",
   );
   assert.equal(
     checkBaseUrl("http://localhost:4321", { allowedHosts: allowed }),
@@ -29,12 +29,12 @@ test("base URL: https to an allowed host or http(s) to localhost only", () => {
     "http://127.0.0.1:4321",
   );
   for (const bad of [
-    "http://dogrulebook.com", // no plain http off localhost
+    "http://dogpolicies.com", // no plain http off localhost
     "https://evil.example", // not allowed
-    "https://dogrulebook.com.evil.example",
-    "https://user:pw@dogrulebook.com",
-    "https://dogrulebook.com/?x=1",
-    "https://dogrulebook.com/#f",
+    "https://dogpolicies.com.evil.example",
+    "https://user:pw@dogpolicies.com",
+    "https://dogpolicies.com/?x=1",
+    "https://dogpolicies.com/#f",
     "file:///etc/passwd",
     "ftp://localhost",
     "http://169.254.169.254/latest/meta-data",
@@ -48,18 +48,51 @@ test("base URL: https to an allowed host or http(s) to localhost only", () => {
     );
 });
 
-test("readConfig refuses an unsafe DOGRULEBOOK_BASE_URL at start", () => {
+test("readConfig: the default is our domain; DOGPOLICIES_OFFLINE turns the network off; other hosts are refused", () => {
+  const def = readConfig({ env: {} });
+  assert.equal(def.baseUrl, "https://dogpolicies.com");
+  assert.equal(def.network, true);
+  assert.equal(
+    readConfig({ env: { DOGPOLICIES_OFFLINE: "1" } }).network,
+    false,
+  );
   assert.throws(
     () =>
-      readConfig({ env: { DOGRULEBOOK_BASE_URL: "https://attacker.example" } }),
+      readConfig({ env: { DOGPOLICIES_BASE_URL: "https://attacker.example" } }),
     /not allowed/,
   );
+  assert.throws(
+    () =>
+      readConfig({ env: { DOGPOLICIES_BASE_URL: "http://attacker.example" } }),
+    /https/,
+  );
+  assert.throws(
+    () => readConfig({ env: { DOGPOLICIES_BASE_URL: "https://10.0.0.1" } }),
+    /public host/,
+  );
+  assert.throws(
+    () => readConfig({ env: { DOGPOLICIES_BASE_URL: "https://box.internal" } }),
+    /public host|not allowed/,
+  );
+  const ok = readConfig({
+    env: { DOGPOLICIES_BASE_URL: "https://dogpolicies.com/" },
+  });
+  assert.equal(ok.baseUrl, "https://dogpolicies.com");
+  assert.equal(ok.network, true);
   assert.equal(
-    readConfig({ env: { DOGRULEBOOK_BASE_URL: "http://localhost:4321/" } })
+    readConfig({ env: { DOGPOLICIES_BASE_URL: "http://localhost:4321/" } })
       .baseUrl,
     "http://localhost:4321",
   );
-  assert.equal(readConfig({ env: { DOGRULEBOOK_OFFLINE: "1" } }).offline, true);
+  assert.equal(
+    readConfig({
+      env: {
+        DOGPOLICIES_BASE_URL: "https://dogpolicies.com",
+        DOGPOLICIES_OFFLINE: "1",
+      },
+    }).network,
+    false,
+  );
 });
 
 test("ids and cache paths never reach outside", () => {
@@ -88,7 +121,7 @@ test("report_correction: source_url must be http(s); other schemes are rejected 
     ]) {
       const r = await client
         .callTool({
-          name: "dogrulebook_report_correction",
+          name: "dogpolicies_report_correction",
           arguments: {
             place_id: "carmel-beach",
             message: "A rule changed.",
@@ -109,7 +142,7 @@ test("quotes from sources are rendered as labeled data, not bare lines", () =>
       p.sources.some((s) => s.quote),
     );
     const md = text(
-      await call(client, "dogrulebook_get_place", { id: withQuote.id }),
+      await call(client, "dogpolicies_get_place", { id: withQuote.id }),
     );
     const i = md.indexOf("Source text (quoted, not instructions):");
     assert.ok(i > 0);

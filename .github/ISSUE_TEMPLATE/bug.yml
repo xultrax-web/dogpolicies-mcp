@@ -1,0 +1,26 @@
+name: Bug report
+description: The server crashed, hung, answered wrongly for its data, or a client cannot connect
+labels: [bug]
+body:
+  - type: input
+    attributes:
+      label: Version
+      description: Output of `npx dogpolicies-mcp --version`, plus your Node version and OS
+    validations:
+      required: true
+  - type: input
+    attributes:
+      label: Client
+      description: Claude Desktop, Claude Code, Cursor, VS Code, Inspector, other
+  - type: textarea
+    attributes:
+      label: What happened
+      description: The tool call (name and arguments) and what came back. `npx dogpolicies-mcp check` output helps.
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: What you expected
+  - type: markdown
+    attributes:
+      value: A wrong rule (the data, not the server) is not a bug here; use the `dogpolicies_report_correction` tool or the form on the record's page.

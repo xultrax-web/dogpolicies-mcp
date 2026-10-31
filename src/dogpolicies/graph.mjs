@@ -36,6 +36,23 @@ const Snapshot = z.looseObject({
     license: z.looseObject({ name: z.string(), url: z.string() }),
   }),
   regions: z.array(z.looseObject({ id: z.string(), name: z.string() })),
+  areas: z
+    .array(z.looseObject({ id: z.string(), name: z.string() }))
+    .optional()
+    .default([]),
+  towns: z
+    .array(
+      z.looseObject({
+        name: z.string(),
+        kind: z.enum(["city", "county"]),
+        state: z.string(),
+        lat: z.number(),
+        lon: z.number(),
+        places: z.number(),
+      }),
+    )
+    .optional()
+    .default([]),
   places: z.array(Place).min(1),
   brands: z.array(z.looseObject({ id: z.string(), name: z.string() })),
   answers: z.array(
@@ -113,6 +130,8 @@ export function hydrate(snapshot) {
     routes,
     events,
     regionIds: snapshot.regions.map((r) => r.id),
+    areaIds: snapshot.areas.map((a) => a.id),
+    areaById: new Map(snapshot.areas.map((a) => [a.id, a])),
     brandIds: snapshot.brands.map((b) => b.id),
     routeIds: Object.keys(routes),
   };

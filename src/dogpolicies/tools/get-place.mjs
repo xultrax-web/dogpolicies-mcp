@@ -33,13 +33,13 @@ const PlaceDetail = PlaceItem.extend({
 });
 
 export const getPlace = (ctx) => ({
-  name: "dogrulebook_get_place",
+  name: "dogpolicies_get_place",
   title: "Get place details",
   since: "0.1.0",
   cache: true,
-  description: `Full dog rules for one place by id: every fact with its display text, the rules list, and each source with its URL, publisher, capture date and quote.
+  description: `The full record for one place you already know by id: every dog rule with its display text, the rules list, and each source with its URL, publisher, capture date and quote. Full rules and sources for one place: every fact with its display text, the rules list, and each source with its URL, publisher, capture date and quote.
 
-Use after dogrulebook_search_places or dogrulebook_find_hotels, which return ids. Example: id="carmel-beach".`,
+Use after dogpolicies_search_places or dogpolicies_find_hotels, which return ids. Example: id="carmel-beach".`,
   inputSchema: z.strictObject({
     id: z.string().min(2).max(120).describe('Place id, e.g. "fort-funston"'),
     response_format: pageSchema.response_format,
@@ -51,7 +51,7 @@ Use after dogrulebook_search_places or dogrulebook_find_hotels, which return ids
     if (!p)
       return fail(
         "not_found",
-        `No place with id "${id}". Call dogrulebook_search_places with a name to find the id.`,
+        `No place with id "${id}". Call dogpolicies_search_places with a name to find the id.`,
       );
     const today = ctx.today();
     const fresh = placeFreshness(p, today);
@@ -96,7 +96,7 @@ Use after dogrulebook_search_places or dogrulebook_find_hotels, which return ids
       ]),
       "",
       `Verified ${p.verified_at}; re-check due ${p.review_due}; freshness ${fresh.state}${p.confirmed_by ? `; confirmed by the ${p.confirmed_by}` : ""}. Page: ${p.url} · Markdown: ${p.markdown_url}`,
-      ctx.citations.licenseLine,
+      ctx.citations.line(p.verified_at),
       ...(p.osm ? [OSM_ATTRIBUTION] : []),
     ];
     return result(data, response_format, () => lines.join("\n"));

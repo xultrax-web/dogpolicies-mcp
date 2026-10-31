@@ -11,15 +11,23 @@ import { routeStops } from "./route-stops.mjs";
 import { getRule } from "./get-rule.mjs";
 import { changesSince } from "./changes-since.mjs";
 import { reportCorrection } from "./report-correction.mjs";
+import { near } from "./near.mjs";
+import { planTrip } from "./plan-trip.mjs";
+import { comparePlaces } from "./compare-places.mjs";
+import { changesNear } from "./changes-near.mjs";
 
 export const tools = [
   searchPlaces,
+  near,
   getPlace,
+  comparePlaces,
+  planTrip,
   findHotels,
   getBrandPolicy,
   browseAnswers,
   routeStops,
   getRule,
   changesSince,
+  changesNear,
   reportCorrection,
 ];

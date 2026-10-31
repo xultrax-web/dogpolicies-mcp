@@ -11,7 +11,7 @@ import { isSafeId } from "../../core/safety.mjs";
 import { result } from "./common.mjs";
 
 export const reportCorrection = (ctx) => ({
-  name: "dogrulebook_report_correction",
+  name: "dogpolicies_report_correction",
   title: "Report a correction",
   since: "0.1.0",
   description: `File a correction when a user says a rule on a record is wrong or has changed (a fee went up, a beach closed to dogs, a hotel now takes two pets). The report goes to a person who re-reads the official source; nothing is published automatically and the record does not change until it is verified. Give the place id, what is wrong in a sentence or two, and the official page the user saw, if any. Never send personal details beyond an optional contact the user offers.`,
@@ -69,7 +69,7 @@ export const reportCorrection = (ctx) => ({
         manual,
         "markdown",
         () =>
-          `This server is running offline, so the correction was not sent. File it on the record's page instead: ${formUrl}`,
+          `This server has no site configured (or runs offline), so the correction was not sent. File it on the record's page instead: ${formUrl}`,
       );
     if (!ctx.report.underLimit())
       return fail(

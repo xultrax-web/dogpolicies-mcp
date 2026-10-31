@@ -1,10 +1,10 @@
 #!/usr/bin/env node
-// Dog Rulebook MCP server. No configuration needed: the data ships inside.
+// DogPolicies MCP server. No configuration needed: the data ships inside.
 //
-//   npx dogrulebook-mcp                 stdio (Claude Desktop, Claude Code, Cursor, VS Code)
-//   npx dogrulebook-mcp --http          Streamable HTTP on http://127.0.0.1:3737/mcp
-//   npx dogrulebook-mcp demo "Monterey" one real answer in the terminal, with its citation
-//   npx dogrulebook-mcp check           load the data and run every tool once
+//   npx dogpolicies-mcp                 stdio (Claude Desktop, Claude Code, Cursor, VS Code)
+//   npx dogpolicies-mcp --http          Streamable HTTP on http://127.0.0.1:3737/mcp
+//   npx dogpolicies-mcp demo "Monterey" one real answer in the terminal, with its citation
+//   npx dogpolicies-mcp check           load the data and run every tool once
 //
 // Options: --offline, --base-url <url>, --port <n>, --host <name>, --log <level>
 
@@ -17,7 +17,7 @@ import {
   DEFAULT_BASE_URL,
 } from "../src/config.mjs";
 import { createHttpHandler, listen } from "../src/core/http.mjs";
-import { createRuntime, createServer } from "../src/dogrulebook/server.mjs";
+import { createRuntime, createServer } from "../src/dogpolicies/server.mjs";
 
 const HELP = `${PACKAGE_NAME} ${PACKAGE_VERSION}
 Verified dog rules for California and Nevada travel, as an MCP server.
@@ -32,13 +32,13 @@ Usage
 Options
   --offline            never use the network (no data refresh, no reports)
   --base-url <url>     site to refresh data from and file reports to
-                       (default ${DEFAULT_BASE_URL}; env ${ENV.baseUrl})
+                       (none by default: no network; env ${ENV.baseUrl})
   --port <n>           HTTP port (default 3737)   --host <name>  (default 127.0.0.1)
   --log <level>        silent | error | warn | info | debug (env ${ENV.log})
 
 No telemetry. The only network calls are a data refresh from the base URL and
-the corrections you file with dogrulebook_report_correction.
-Hosted alternative (no install): ${DEFAULT_BASE_URL}${REMOTE_MCP_PATH}
+the corrections you file with dogpolicies_report_correction.
+Hosted alternative (no install): <site>${REMOTE_MCP_PATH} once the site is live
 `;
 
 function parseArgs(argv) {
@@ -109,7 +109,7 @@ if (args.command === "stdio") {
   );
   ctx.source.refresh();
 } else {
-  const { runCheck, runDemo } = await import("../src/dogrulebook/cli.mjs");
+  const { runCheck, runDemo } = await import("../src/dogpolicies/cli.mjs");
   const code =
     args.command === "check"
       ? await runCheck(ctx)

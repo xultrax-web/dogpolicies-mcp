@@ -3,7 +3,7 @@
 
 import { test } from "node:test";
 import { strict as assert } from "node:assert";
-import { createRuntime } from "../src/dogrulebook/server.mjs";
+import { createRuntime } from "../src/dogpolicies/server.mjs";
 import { call, sharedRuntime, text, withClient } from "./helpers.mjs";
 
 const BUDGET = {
@@ -53,7 +53,7 @@ test("call latency budgets (p95 over repeated uncached calls)", () =>
       "trail",
     ];
     const search = await time(
-      "dogrulebook_search_places",
+      "dogpolicies_search_places",
       (i) => ({ query: words[i % words.length], offset: i % 7 }),
       60,
     );
@@ -65,7 +65,7 @@ test("call latency budgets (p95 over repeated uncached calls)", () =>
       .graph.places.slice(0, 60)
       .map((p) => p.id);
     const detail = await time(
-      "dogrulebook_get_place",
+      "dogpolicies_get_place",
       (i) => ({ id: ids[i] }),
       60,
     );
@@ -82,7 +82,7 @@ test("call latency budgets (p95 over repeated uncached calls)", () =>
       "Sonoma",
     ];
     const hotels = await time(
-      "dogrulebook_find_hotels",
+      "dogpolicies_find_hotels",
       (i) => ({
         county: counties[i % counties.length],
         dog_weight_lb: 40 + i,
@@ -99,16 +99,16 @@ test("call latency budgets (p95 over repeated uncached calls)", () =>
 test("every list tool keeps its text under the character budget at the largest page", () =>
   withClient(async (client) => {
     const big = [
-      ["dogrulebook_search_places", { limit: 50 }],
-      ["dogrulebook_search_places", { type: "campground", limit: 50 }],
-      ["dogrulebook_find_hotels", { limit: 50, dogs: 2, nights: 3 }],
-      ["dogrulebook_browse_answers", {}],
+      ["dogpolicies_search_places", { limit: 50 }],
+      ["dogpolicies_search_places", { type: "campground", limit: 50 }],
+      ["dogpolicies_find_hotels", { limit: 50, dogs: 2, nights: 3 }],
+      ["dogpolicies_browse_answers", {}],
       [
-        "dogrulebook_browse_answers",
+        "dogpolicies_browse_answers",
         { slug: "california-state-parks-that-allow-dogs", limit: 50 },
       ],
-      ["dogrulebook_route_stops", { route: "us-101", limit: 50 }],
-      ["dogrulebook_changes_since", { since: "2000-01-01", limit: 50 }],
+      ["dogpolicies_route_stops", { route: "us-101", limit: 50 }],
+      ["dogpolicies_changes_since", { since: "2000-01-01", limit: 50 }],
     ];
     for (const [name, args] of big) {
       const r = await call(client, name, args);

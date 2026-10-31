@@ -24,7 +24,7 @@ const BrandDetail = z.looseObject({
 });
 
 export const getBrandPolicy = (ctx) => ({
-  name: "dogrulebook_get_brand_policy",
+  name: "dogpolicies_get_brand_policy",
   title: "Get hotel brand pet policy",
   since: "0.1.0",
   cache: true,
@@ -77,7 +77,7 @@ Brands covered: ${ctx.graph.brands.map((b) => `${b.name} (${b.id})`).join(", ")}
         : []),
       "",
       `${b.california_properties} California and ${b.nevada_properties} Nevada properties carry this policy. Official policy: ${b.source}. Verified ${b.verified_at}. ${b.url}`,
-      ctx.citations.licenseLine,
+      ctx.citations.line(b.verified_at),
     ];
     return result(data, response_format, () => lines.join("\n"));
   },

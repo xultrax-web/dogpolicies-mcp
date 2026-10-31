@@ -13,7 +13,7 @@ import {
 } from "./common.mjs";
 
 export const getRule = (ctx) => ({
-  name: "dogrulebook_get_rule",
+  name: "dogpolicies_get_rule",
   title: "Get one rule by id",
   since: "0.1.0",
   cache: true,
@@ -39,7 +39,7 @@ export const getRule = (ctx) => ({
     if (!found)
       return fail(
         "not_found",
-        `No rule with id "${id}". Rule ids are listed in rule_records of dogrulebook_get_place.`,
+        `No rule with id "${id}". Rule ids are listed in rule_records of dogpolicies_get_place.`,
       );
     const today = ctx.today();
     const { place: p } = found;
@@ -57,7 +57,7 @@ export const getRule = (ctx) => ({
       `Source: ${r.sourcePublisher}, ${r.sourceUrl}`,
       ...quoteBlock(r.quote),
       `Permalink: ${data.rule.permalink}`,
-      ctx.citations.licenseLine,
+      ctx.citations.line(r.verifiedAt),
     ];
     return result(data, response_format, () => lines.join("\n"));
   },

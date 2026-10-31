@@ -1,0 +1,16 @@
+name: Feature request
+description: A tool, field, prompt or resource that would help an assistant answer better
+labels: [enhancement]
+body:
+  - type: textarea
+    attributes:
+      label: The question a user asks
+      description: In their words. The eval set in test/eval/questions.json is built from these.
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: What the server should return
+  - type: textarea
+    attributes:
+      label: Why the existing tools do not cover it

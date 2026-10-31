@@ -1,39 +1,39 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
-  "name": "io.github.xultrax-web/dogrulebook",
-  "title": "Dog Rulebook",
-  "description": "Verified dog rules for California and Nevada travel: parks, beaches, hotels, fees. Sourced and dated.",
-  "websiteUrl": "https://dogrulebook.com/mcp/",
+  "name": "io.github.xultrax-web/dogpolicies-mcp",
+  "title": "DogPolicies",
+  "description": "Verified dog rules for California and Nevada travel: parks, beaches, hotels, fees, sourced and dated",
+  "websiteUrl": "https://github.com/xultrax-web/dogpolicies-mcp#readme",
   "repository": {
-    "url": "https://github.com/xultrax-web/dogrulebook",
+    "url": "https://github.com/xultrax-web/dogpolicies-mcp",
     "source": "github",
     "subfolder": "packages/mcp"
   },
-  "version": "0.1.0",
+  "version": "0.2.0",
   "packages": [
     {
       "registryType": "npm",
       "registryBaseUrl": "https://registry.npmjs.org",
-      "identifier": "dogrulebook-mcp",
-      "version": "0.1.0",
+      "identifier": "dogpolicies-mcp",
+      "version": "0.2.0",
       "runtimeHint": "npx",
       "transport": {
         "type": "stdio"
       },
       "environmentVariables": [
         {
-          "name": "DOGRULEBOOK_OFFLINE",
+          "name": "DOGPOLICIES_OFFLINE",
           "description": "Set to 1 to never use the network (no data refresh, corrections return the web form URL)",
           "isRequired": false,
           "isSecret": false,
           "default": "0"
         },
         {
-          "name": "DOGRULEBOOK_BASE_URL",
+          "name": "DOGPOLICIES_BASE_URL",
           "description": "Site to refresh data from and file corrections to",
           "isRequired": false,
           "isSecret": false,
-          "default": "https://dogrulebook.com"
+          "default": "https://dogpolicies.com"
         }
       ]
     }
@@ -41,15 +41,15 @@
   "remotes": [
     {
       "type": "streamable-http",
-      "url": "https://dogrulebook.com/mcp/"
+      "url": "https://dogpolicies.com/mcp/"
     }
   ],
   "_meta": {
     "io.modelcontextprotocol.registry/publisher-provided": {
-      "tool": "dogrulebook-release",
+      "tool": "dogpolicies-release",
       "license": "code MIT; data CC BY 4.0 (chain-hotel names and locations ODbL)",
       "coverage": "California and Nevada",
-      "tools": 9
+      "tools": 13
     }
   }
 }
