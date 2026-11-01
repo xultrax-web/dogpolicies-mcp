@@ -44,7 +44,8 @@ const Snapshot = z.looseObject({
     .array(
       z.looseObject({
         name: z.string(),
-        kind: z.enum(["city", "county"]),
+        kind: z.enum(["area", "city", "county"]),
+        id: z.string().optional(),
         state: z.string(),
         lat: z.number(),
         lon: z.number(),

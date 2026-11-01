@@ -33,8 +33,15 @@ Added
   `check_hotel_for_dog`, `road_trip_with_dog`, `what_can_my_dog_do_here`,
   `cite_a_rule`.
 - Cache hints on list methods and resource reads (MCP 2026-07-28).
-- Optional area fields in the snapshot and an `area` filter, ahead of the
-  Region > Area > City > Place data.
+- Areas (Region > Area > City > Place): `area` and `area_id` on every
+  place, an `area` filter on search, hotels and route tools, area names in
+  the gazetteer so `near`, `plan_trip` and `changes_near` take "East Bay" or
+  "Lake Tahoe" (an area is its own boundary, not a radius), a
+  `dogpolicies://area/{id}` resource with completion, and area questions in
+  the eval set.
+- The hosted server at dogpolicies.com/mcp/ is this package running over the
+  site's own data (same thirteen tools, resources and prompts); it keeps the
+  old `dogrulebook_*` tool names as aliases.
 - An eval set of 33 real questions scored for tool selection and answer
   facts, a fuzz test, a CI matrix (Linux, macOS, Windows × Node 20, 22,
   24), a dependency audit, a generated tool reference (`docs/tools.md`),

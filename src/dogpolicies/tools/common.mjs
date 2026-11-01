@@ -42,6 +42,8 @@ export function summary(p, today, extra = {}) {
     county: p.county,
     state: p.state,
     region: p.region,
+    area: p.area ?? null,
+    area_id: p.area_id ?? null,
     status: p.status,
     answer: p.answer,
     citation: p.citation,
@@ -169,7 +171,7 @@ export function locationSchema(graph) {
       .max(60)
       .optional()
       .describe(
-        "Area id inside a region (a tourist area such as a valley, coast or metro), when the data has areas",
+        `Area id, the name a traveler gives the trip: ${graph.areaIds.join(", ")}`,
       ),
     near: z
       .strictObject({
@@ -304,9 +306,14 @@ export function resolveTown(graph, text) {
     towns.find((t) => t.kind === kind && norm(t.name) === name);
   const starts = (kind) =>
     towns.find((t) => t.kind === kind && norm(t.name).startsWith(name));
+  // Exact names first, areas before cities ("Lake Tahoe" is the trip, not a
+  // town), then an area id, then prefixes.
   return (
+    exact("area") ??
     exact("city") ??
     exact("county") ??
+    towns.find((t) => t.kind === "area" && t.id === name) ??
+    starts("area") ??
     starts("city") ??
     starts("county") ??
     null

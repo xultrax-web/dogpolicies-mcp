@@ -58,6 +58,7 @@ import { stableStringify } from "./result.mjs";
  * @param {(name: string, ctx: object) => any} [options.onToolCall]
  * @param {number} [options.cacheSize]
  * @param {object} [options.stats] a counter object shared across servers
+ * @param {string} [options.aliasPrefix] also register every tool under this prefix (older clients)
  */
 export function createToolServer({
   identity,
@@ -70,6 +71,7 @@ export function createToolServer({
   onToolCall,
   cacheSize = 200,
   stats = { calls: 0, errors: 0, cacheHits: 0 },
+  aliasPrefix = null,
 }) {
   const server = new McpServer(
     { name: identity.name, title: identity.title, version: identity.version },
@@ -95,45 +97,55 @@ export function createToolServer({
     const description = tool.deprecated
       ? `DEPRECATED: ${tool.deprecated}\n\n${tool.description}`
       : tool.description;
-    server.registerTool(
-      tool.name,
-      {
-        title: tool.title,
-        description,
-        inputSchema: tool.inputSchema,
-        outputSchema: tool.outputSchema,
-        annotations: tool.annotations,
-      },
-      async (args, ctx) => {
-        stats.calls++;
-        const started = performance.now();
-        const counted = onToolCall?.(tool.name, ctx);
-        let output;
-        try {
-          const key = tool.cache
-            ? `${dataVersion()}|${tool.name}|${stableStringify(args)}`
-            : null;
-          output = key ? cache.get(key) : undefined;
-          if (output) stats.cacheHits++;
-          else {
-            output = await tool.handler(args, ctx);
-            if (key && !output.isError) cache.set(key, output);
-          }
-        } catch (error) {
-          output = toErrorResult(error, { log });
+    const handler = async (args, ctx) => {
+      stats.calls++;
+      const started = performance.now();
+      const counted = onToolCall?.(tool.name, ctx);
+      let output;
+      try {
+        const key = tool.cache
+          ? `${dataVersion()}|${tool.name}|${stableStringify(args)}`
+          : null;
+        output = key ? cache.get(key) : undefined;
+        if (output) stats.cacheHits++;
+        else {
+          output = await tool.handler(args, ctx);
+          if (key && !output.isError) cache.set(key, output);
         }
-        if (output.isError) stats.errors++;
-        try {
-          await counted;
-        } catch {
-          // counting never fails a call
-        }
-        log?.debug(
-          `${tool.name} ${output.isError ? "error" : "ok"} in ${(performance.now() - started).toFixed(1)} ms`,
-        );
-        return output;
-      },
-    );
+      } catch (error) {
+        output = toErrorResult(error, { log });
+      }
+      if (output.isError) stats.errors++;
+      try {
+        await counted;
+      } catch {
+        // counting never fails a call
+      }
+      log?.debug(
+        `${tool.name} ${output.isError ? "error" : "ok"} in ${(performance.now() - started).toFixed(1)} ms`,
+      );
+      return output;
+    };
+    const config = {
+      title: tool.title,
+      description,
+      inputSchema: tool.inputSchema,
+      outputSchema: tool.outputSchema,
+      annotations: tool.annotations,
+    };
+    server.registerTool(tool.name, config, handler);
+    // The old names, for clients configured before a rename.
+    const [, suffix] = tool.name.match(/^[a-z0-9]+_(.*)$/) ?? [];
+    if (aliasPrefix && suffix)
+      server.registerTool(
+        `${aliasPrefix}${suffix}`,
+        {
+          ...config,
+          title: `${tool.title} (alias)`,
+          description: `Alias of ${tool.name}, kept for older clients. ${description}`,
+        },
+        handler,
+      );
   }
 
   for (const r of resources) {

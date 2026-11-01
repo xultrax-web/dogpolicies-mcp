@@ -29,7 +29,8 @@ export function readSnapshotFile(path) {
 
 /**
  * @param {object} options
- * @param {string} options.bundledPath path of the snapshot shipped in the package
+ * @param {string} [options.bundledPath] path of the snapshot shipped in the package
+ * @param {object} [options.bundled] the snapshot as an object, instead of a file
  * @param {string|null} options.remoteUrl full URL of the hosted snapshot, or null
  * @param {string|null} options.cacheDir directory for the cached copy, or null for none
  * @param {(raw: object) => object} options.validate throws on a bad snapshot, returns it
@@ -42,6 +43,7 @@ export function readSnapshotFile(path) {
  */
 export function createSnapshotSource({
   bundledPath,
+  bundled: bundledObject,
   remoteUrl,
   cacheDir,
   validate,
@@ -70,7 +72,7 @@ export function createSnapshotSource({
   };
 
   function load() {
-    const bundled = validate(readSnapshotFile(bundledPath));
+    const bundled = validate(bundledObject ?? readSnapshotFile(bundledPath));
     current = bundled;
     origin = "bundled";
     if (cachePath && existsSync(cachePath)) {

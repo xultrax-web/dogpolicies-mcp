@@ -54,7 +54,13 @@ export const resources = (ctx) => [
         "",
         "## Resources",
         "",
-        "- dogpolicies://place/{id}, dogpolicies://brand/{id}, dogpolicies://answer/{slug}, dogpolicies://route/{id}, dogpolicies://answers, dogpolicies://status",
+        "- dogpolicies://place/{id}, dogpolicies://brand/{id}, dogpolicies://answer/{slug}, dogpolicies://route/{id}, dogpolicies://area/{id}, dogpolicies://answers, dogpolicies://status",
+        "",
+        "## Areas",
+        "",
+        ...ctx.graph.areas.map(
+          (a) => `- ${a.name} (\`${a.id}\`, ${a.places} places)`,
+        ),
       ].join("\n"),
     }),
   },
@@ -196,6 +202,34 @@ export const resources = (ctx) => [
       const r = await viaTool(ctx, "dogpolicies_route_stops", {
         route: String(id),
         limit: 50,
+      });
+      return r.isError ? null : { text: r.content[0].text };
+    },
+  },
+  {
+    name: "area",
+    template: {
+      uriTemplate: "dogpolicies://area/{id}",
+      list: () => ({
+        resources: ctx.graph.areas.map((a) => ({
+          uri: `dogpolicies://area/${a.id}`,
+          name: a.name,
+          description: a.blurb ?? undefined,
+          mimeType: TEXT,
+        })),
+      }),
+      complete: { id: (value) => rank(ctx.graph.areaIds, value) },
+    },
+    title: "Area",
+    description:
+      "Every dog-related place in one area (East Bay, Lake Tahoe, Big Sur), grouped by kind",
+    mimeType: TEXT,
+    read: async ({ id }) => {
+      const area = ctx.graph.areaById.get(String(id));
+      if (!area) return null;
+      const r = await viaTool(ctx, "dogpolicies_near", {
+        place: area.name,
+        per_type: 20,
       });
       return r.isError ? null : { text: r.content[0].text };
     },

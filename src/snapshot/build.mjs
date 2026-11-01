@@ -12,7 +12,10 @@ export const SNAPSHOT_SCHEMA = 1;
 const clean = (obj) =>
   Object.fromEntries(Object.entries(obj).filter(([, v]) => v !== undefined));
 
-function placeRecord(p, { regionName, tagsOf, abs, placePath, ruleJson }) {
+function placeRecord(
+  p,
+  { regionName, areaName, tagsOf, abs, placePath, ruleJson },
+) {
   const sourceKeys = Object.keys(p.sources);
   return clean({
     id: p.id,
@@ -26,6 +29,7 @@ function placeRecord(p, { regionName, tagsOf, abs, placePath, ruleJson }) {
     // Areas (Region > Area > City > Place) land on the `areas` branch; the
     // fields are optional here so the snapshot format needs no bump.
     area_id: p.areaId ?? null,
+    area: p.areaId ? (areaName[p.areaId] ?? null) : null,
     region: p.regionId ? (regionName[p.regionId] ?? null) : null,
     status: p.answer.status,
     answer: p.answer.headline,
@@ -130,6 +134,48 @@ function brandRecord(b, { abs, brandPath }) {
   };
 }
 
+/** The centroid of the places in an area, or null when none has coordinates. */
+function centroid(places) {
+  const geo = places.filter((p) => p.geo);
+  if (!geo.length) return null;
+  const lat = geo.reduce((s, p) => s + p.geo.lat, 0) / geo.length;
+  const lon = geo.reduce((s, p) => s + p.geo.lon, 0) / geo.length;
+  return { lat: Math.round(lat * 1e4) / 1e4, lon: Math.round(lon * 1e4) / 1e4 };
+}
+
+/** An area as the snapshot carries it: the name a traveler gives the trip. */
+function areaRecord(a, places) {
+  const members = places.filter((p) => p.areaId === a.id);
+  return {
+    id: a.id,
+    name: a.name,
+    in_name: a.inName ?? a.name,
+    kind: a.kind ?? null,
+    regionId: a.regionId ?? null,
+    state: a.state ?? "CA",
+    blurb: a.blurb ?? null,
+    places: members.length,
+    centroid: centroid(members),
+  };
+}
+
+/** The gazetteer entry for an area, so "Lake Tahoe" resolves like a town. */
+function areaTown(a, places) {
+  const members = places.filter((p) => p.areaId === a.id);
+  const c = centroid(members);
+  if (!c) return null;
+  return {
+    name: a.name,
+    kind: "area",
+    id: a.id,
+    county: null,
+    state: a.state ?? "CA",
+    lat: c.lat,
+    lon: c.lon,
+    places: members.length,
+  };
+}
+
 /**
  * A gazetteer built from the places themselves: every city and county that
  * has places with coordinates, with the centroid of those places. It lets a
@@ -190,7 +236,10 @@ export function buildSnapshot(graph, deps) {
   const regionName = Object.fromEntries(
     graph.regions.map((r) => [r.id, r.name]),
   );
-  const ctx = { ...deps, regionName };
+  const areaName = Object.fromEntries(
+    (graph.areas ?? []).map((a) => [a.id, a.name]),
+  );
+  const ctx = { ...deps, regionName, areaName };
   return {
     schema: SNAPSHOT_SCHEMA,
     as_of: graph.builtAt,
@@ -202,12 +251,13 @@ export function buildSnapshot(graph, deps) {
       tagline: site.tagline,
     },
     regions: graph.regions.map((r) => ({ id: r.id, name: r.name })),
-    areas: (graph.areas ?? []).map((a) => ({
-      id: a.id,
-      name: a.name,
-      regionId: a.regionId ?? null,
-    })),
-    towns: towns(graph.places),
+    areas: (graph.areas ?? []).map((a) => areaRecord(a, graph.places)),
+    towns: [
+      ...(graph.areas ?? [])
+        .map((a) => areaTown(a, graph.places))
+        .filter(Boolean),
+      ...towns(graph.places),
+    ],
     places: graph.places.map((p) => placeRecord(p, ctx)),
     brands: graph.brands.map((b) => brandRecord(b, ctx)),
     answers: answers.map((a) => ({

@@ -108,15 +108,15 @@ validated by the same zod schema, swapped in only when newer, cached
 atomically. Never throws, never blocks a call. `DOGPOLICIES_OFFLINE=1`
 disables it and the correction sender.
 
-## Areas (coming)
+## Areas
 
-The data is growing a Region > Area > City > Place structure. The snapshot
-already carries optional `areas` and `area_id` on places, the location
-filter accepts `area`, and `ctx.graph.areaIds`/`areaById` exist, all
-without a schema bump. When the data lands: add `area` to the summary and
-the town gazetteer (`towns()` in `src/snapshot/build.mjs`) so
-`dogpolicies_near` resolves area names, and list areas in a
-`dogpolicies://areas` resource.
+The data has a Region > Area > City > Place structure. The snapshot carries
+`areas` (id, name, kind, region, state, blurb, place count, centroid) and
+`area`/`area_id` on every place; the gazetteer lists each area as a town of
+kind `area`, resolved first by `resolveTown`, and `resolveScope` treats an
+area as its member places rather than a radius. The location filter accepts
+`area`, summaries carry `area`, and `dogpolicies://area/{id}` reads an area
+with completion. No schema bump was needed: every field is additive.
 
 ## Building a second server on the core
 

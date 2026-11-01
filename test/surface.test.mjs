@@ -36,10 +36,38 @@ test("resources: about, status and answers read; templates list and complete", (
     const { resourceTemplates } = await client.listResourceTemplates();
     assert.deepEqual(resourceTemplates.map((t) => t.uriTemplate).sort(), [
       "dogpolicies://answer/{slug}",
+      "dogpolicies://area/{id}",
       "dogpolicies://brand/{id}",
       "dogpolicies://place/{id}",
       "dogpolicies://route/{id}",
     ]);
+    const area = await client.readResource({
+      uri: "dogpolicies://area/east-bay",
+    });
+    assert.match(area.contents[0].text, /East Bay/);
+    const areaCompletion = await client.complete({
+      ref: { type: "ref/resource", uri: "dogpolicies://area/{id}" },
+      argument: { name: "id", value: "lake" },
+    });
+    assert.ok(areaCompletion.completion.values.includes("lake-tahoe"));
+    const tahoe = await call(client, "dogpolicies_near", {
+      place: "Lake Tahoe",
+      response_format: "json",
+    });
+    assert.equal(tahoe.structuredContent.label, "Lake Tahoe");
+    assert.ok(
+      tahoe.structuredContent.groups
+        .flatMap((g) => g.places)
+        .every((p) => p.area_id === "lake-tahoe"),
+    );
+    const bigSur = await call(client, "dogpolicies_search_places", {
+      area: "big-sur",
+      response_format: "json",
+    });
+    assert.ok(bigSur.structuredContent.total > 0);
+    assert.ok(
+      bigSur.structuredContent.places.every((p) => p.area === "Big Sur"),
+    );
     const completion = await client.complete({
       ref: { type: "ref/resource", uri: "dogpolicies://place/{id}" },
       argument: { name: "id", value: "carmel" },

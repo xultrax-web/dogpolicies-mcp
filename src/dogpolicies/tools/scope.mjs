@@ -15,7 +15,7 @@ export const scopeSchema = {
     .max(80)
     .optional()
     .describe(
-      'A city or county in California or Nevada, e.g. "Monterey", "South Lake Tahoe", "Washoe County, NV" or "Las Vegas"',
+      'A city, county or area in California or Nevada, e.g. "Monterey", "South Lake Tahoe", "Washoe County, NV", "Las Vegas", "East Bay" or "Lake Tahoe"',
     ),
   near: z
     .strictObject({
@@ -29,7 +29,9 @@ export const scopeSchema = {
     .min(1)
     .max(100)
     .default(15)
-    .describe("Search radius in miles around the town or point"),
+    .describe(
+      "Search radius in miles around the town or point (an area is its own boundary; the radius is ignored)",
+    ),
 };
 
 /**
@@ -53,7 +55,9 @@ export function resolveScope(ctx, { place, near, radius_miles }) {
     label =
       town.kind === "county"
         ? `${countyName(town.name)}, ${STATE_NAME[town.state]}`
-        : `${town.name}, ${town.state}`;
+        : town.kind === "area"
+          ? town.name
+          : `${town.name}, ${town.state}`;
   }
   if (!center)
     return {
@@ -63,14 +67,17 @@ export function resolveScope(ctx, { place, near, radius_miles }) {
       ),
     };
   const radius = radius_miles ?? 15;
+  // An area is its member places (East Bay is the five-county definition, not
+  // a circle), sorted by distance from the area's center for a stable order.
+  const isArea = town?.kind === "area";
   const within = (places) =>
-    places
+    (isArea ? places.filter((p) => p.area_id === town.id) : places)
       .filter((p) => p.geo)
       .map((p) => ({
         place: p,
         distance: Math.round(miles(center, p.geo) * 10) / 10,
       }))
-      .filter((x) => x.distance <= radius)
+      .filter((x) => isArea || x.distance <= radius)
       .sort(
         (a, b) =>
           a.distance - b.distance || a.place.name.localeCompare(b.place.name),

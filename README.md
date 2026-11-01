@@ -24,6 +24,7 @@ npx dogpolicies-mcp demo
 - Dog-friendly stops along I-5, US-101, Highway 1, I-15, I-80, US-50, US-95 and US-93, in driving order.
 - Hotel chain pet policies (Motel 6, Red Roof, Kimpton and more) and which properties are exceptions.
 - Side-by-side comparisons, and what changed since a date, everywhere or near a town.
+- Areas the way travelers name them: East Bay, Lake Tahoe, Big Sur, Yosemite, Death Valley, the Mendocino Coast and the Bay Area's metros, as a filter, a place name in `near` and `plan_trip`, and a resource.
 
 Every fact comes from an official source (an agency page or the business's own policy) with the date it was checked. Every result starts with a one-line citation and ends with `DogPolicies, dogpolicies.com, CC BY 4.0, verified {date}`. When a source does not state something, the record says "not stated" instead of guessing.
 
@@ -136,7 +137,7 @@ Every tool returns readable markdown by default and structured JSON (`response_f
 
 ### Resources and prompts
 
-Resources let a client attach a record without a tool call: `dogpolicies://place/{id}`, `dogpolicies://brand/{id}`, `dogpolicies://answer/{slug}`, `dogpolicies://route/{id}` (all with completion), plus `dogpolicies://about`, `dogpolicies://answers` and `dogpolicies://status`. Prompts give a client's slash menu the common trips: `plan_dog_trip`, `check_hotel_for_dog`, `road_trip_with_dog`, `what_can_my_dog_do_here`, `cite_a_rule`, with town-name completion.
+Resources let a client attach a record without a tool call: `dogpolicies://place/{id}`, `dogpolicies://brand/{id}`, `dogpolicies://answer/{slug}`, `dogpolicies://route/{id}`, `dogpolicies://area/{id}` (all with completion), plus `dogpolicies://about`, `dogpolicies://answers` and `dogpolicies://status`. Prompts give a client's slash menu the common trips: `plan_dog_trip`, `check_hotel_for_dog`, `road_trip_with_dog`, `what_can_my_dog_do_here`, `cite_a_rule`, with town-name completion.
 
 ## How the data stays current
 
