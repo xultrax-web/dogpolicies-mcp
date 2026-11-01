@@ -1,6 +1,6 @@
 # DogPolicies MCP server
 
-**[dogpolicies.com](https://dogpolicies.com/)** · Verified dog rules for California and Nevada travel, for AI assistants.
+**[dogpolicies.com](https://dogpolicies.com/)** · Verified dog rules for California and Nevada travel, for AI assistants. [Install guide and example](https://dogpolicies.com/mcp/about/).
 
 Ask Claude, Cursor or any MCP client "can my 70 lb dog stay at a Monterey hotel for under $50?", "what can my dog do in Carmel?" or "plan three nights in Tahoe with two dogs" and get an answer with the official source, the date it was checked and a link to the record. No API key, no account, no configuration: the data ships inside the package.
 
@@ -84,7 +84,7 @@ Settings → MCP → Add new global MCP server (or `.cursor/mcp.json` in a proje
 
 ### Hosted (no install)
 
-Once the site is live, the same tools are served over Streamable HTTP at `https://dogpolicies.com/mcp/` for clients that connect by URL:
+The same tools are served over Streamable HTTP at `https://dogpolicies.com/mcp/` for clients that connect by URL:
 
 ```bash
 claude mcp add --transport http dogpolicies https://dogpolicies.com/mcp/
