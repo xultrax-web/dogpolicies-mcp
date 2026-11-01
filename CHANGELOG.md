@@ -10,6 +10,18 @@ The data inside the package has its own date (`as_of` in every result). A
 new package version ships a new snapshot; the server also refreshes from the
 site on its own when the network allows.
 
+## 0.2.7 - 2026-11-01
+
+Data release: the snapshot now carries data round 3.
+
+Changed
+
+- 3,484 places, up from 2,669: 815 newly verified parks, dog parks, trails,
+  beaches, hotels, wineries and restaurants. New coverage includes Las Vegas,
+  Reno and Sparks, Orange County, Santa Barbara, Santa Cruz, Mill Valley and
+  Marin, Golden Gate National Recreation Area, San Bernardino and Inyo
+  National Forest trails, Yosemite and Sequoia, Fresno and Sacramento.
+
 ## 0.2.6 - 2026-11-01
 
 Data release: the snapshot now carries data round 2.
