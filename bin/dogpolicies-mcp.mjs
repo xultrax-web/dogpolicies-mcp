@@ -27,6 +27,9 @@ Usage
   ${PACKAGE_NAME} --http [--port N]    serve over Streamable HTTP on localhost
   ${PACKAGE_NAME} demo [query]         print one cited answer to the terminal
   ${PACKAGE_NAME} check                load the data and call every tool once
+  ${PACKAGE_NAME} install              add this server to Claude Desktop (or --client cursor |
+                                       vscode | windsurf | claude-code, or --all); --hosted for the
+                                       remote URL, --dry-run to preview, --uninstall to remove
   ${PACKAGE_NAME} --version | --help
 
 Options
@@ -48,6 +51,13 @@ function parseArgs(argv) {
     host: "127.0.0.1",
     overrides: {},
     rest: [],
+    install: {
+      clients: [],
+      hosted: false,
+      dryRun: false,
+      uninstall: false,
+      all: false,
+    },
   };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
@@ -56,7 +66,12 @@ function parseArgs(argv) {
     else if (a === "--version" || a === "-v") out.command = "version";
     else if (a === "--http") out.command = "http";
     else if (a === "--stdio") out.command = "stdio";
-    else if (a === "demo" || a === "check") out.command = a;
+    else if (a === "demo" || a === "check" || a === "install") out.command = a;
+    else if (a === "--client") out.install.clients.push(next());
+    else if (a === "--hosted") out.install.hosted = true;
+    else if (a === "--dry-run") out.install.dryRun = true;
+    else if (a === "--uninstall") out.install.uninstall = true;
+    else if (a === "--all") out.install.all = true;
     else if (a === "--offline") out.overrides.offline = true;
     else if (a === "--base-url") out.overrides.baseUrl = next();
     else if (a === "--log") out.overrides.logLevel = next();
@@ -75,6 +90,11 @@ const args = parseArgs(process.argv.slice(2));
 if (args.command === "help") {
   process.stdout.write(HELP);
   process.exit(0);
+}
+if (args.command === "install") {
+  // Needs no data and no server: only the client's config file.
+  const { runInstall } = await import("../src/dogpolicies/install.mjs");
+  process.exit(runInstall(args.install));
 }
 if (args.command === "version") {
   process.stdout.write(`${PACKAGE_VERSION}\n`);

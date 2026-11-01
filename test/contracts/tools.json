@@ -107,8 +107,13 @@
       "openWorldHint": false
     },
     "input": {
-      "required": ["id"],
-      "properties": ["id", "response_format"]
+      "required": [
+        "id"
+      ],
+      "properties": [
+        "id",
+        "response_format"
+      ]
     },
     "output": {
       "required": [
@@ -176,8 +181,13 @@
       "openWorldHint": false
     },
     "input": {
-      "required": ["ids"],
-      "properties": ["ids", "response_format"]
+      "required": [
+        "ids"
+      ],
+      "properties": [
+        "ids",
+        "response_format"
+      ]
     },
     "output": {
       "required": [
@@ -319,8 +329,13 @@
       "openWorldHint": false
     },
     "input": {
-      "required": ["brand"],
-      "properties": ["brand", "response_format"]
+      "required": [
+        "brand"
+      ],
+      "properties": [
+        "brand",
+        "response_format"
+      ]
     },
     "output": {
       "required": [
@@ -365,7 +380,12 @@
     },
     "input": {
       "required": [],
-      "properties": ["limit", "offset", "response_format", "slug"]
+      "properties": [
+        "limit",
+        "offset",
+        "response_format",
+        "slug"
+      ]
     },
     "output": {
       "required": [
@@ -455,8 +475,13 @@
       "openWorldHint": false
     },
     "input": {
-      "required": ["id"],
-      "properties": ["id", "response_format"]
+      "required": [
+        "id"
+      ],
+      "properties": [
+        "id",
+        "response_format"
+      ]
     },
     "output": {
       "required": [
@@ -488,8 +513,16 @@
       "openWorldHint": false
     },
     "input": {
-      "required": ["since"],
-      "properties": ["limit", "offset", "outcome", "response_format", "since"]
+      "required": [
+        "since"
+      ],
+      "properties": [
+        "limit",
+        "offset",
+        "outcome",
+        "response_format",
+        "since"
+      ]
     },
     "output": {
       "required": [
@@ -527,7 +560,9 @@
       "openWorldHint": false
     },
     "input": {
-      "required": ["since"],
+      "required": [
+        "since"
+      ],
       "properties": [
         "limit",
         "near",
@@ -577,12 +612,30 @@
       "openWorldHint": true
     },
     "input": {
-      "required": ["message", "place_id"],
-      "properties": ["contact", "message", "place_id", "source_url"]
+      "required": [
+        "message",
+        "place_id"
+      ],
+      "properties": [
+        "contact",
+        "message",
+        "place_id",
+        "source_url"
+      ]
     },
     "output": {
-      "required": ["place_id", "report_id", "status", "url"],
-      "properties": ["place_id", "report_id", "status", "url"]
+      "required": [
+        "place_id",
+        "report_id",
+        "status",
+        "url"
+      ],
+      "properties": [
+        "place_id",
+        "report_id",
+        "status",
+        "url"
+      ]
     },
     "since": "0.1.0",
     "deprecated": null

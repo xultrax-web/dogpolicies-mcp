@@ -10,6 +10,31 @@ The data inside the package has its own date (`as_of` in every result). A
 new package version ships a new snapshot; the server also refreshes from the
 site on its own when the network allows.
 
+## 0.2.5 - 2026-11-01
+
+The install experience, after a hand install into Claude Desktop on Windows
+needed finding the config file, adding a missing `mcpServers` key, merging,
+backing up and a full quit from the tray.
+
+Added
+
+- `npx dogpolicies-mcp install` with `--client claude-desktop | cursor |
+vscode | windsurf | claude-code`, `--all`, `--hosted`, `--dry-run` and
+  `--uninstall`: finds the client's config on Windows, macOS and Linux,
+  creates the file or the `mcpServers` key when missing, merges one entry
+  without touching other settings, writes a timestamped backup, is
+  idempotent, refuses (and explains) a file it cannot parse, needs no admin
+  rights, and prints the exact restart step and log location. On Windows it
+  writes `cmd /c npx -y dogpolicies-mcp`, the form clients can start.
+  Claude Code goes through the official `claude mcp add`.
+- A one-click Claude Desktop extension (`dogpolicies-mcp-<version>.mcpb`,
+  official MCPB format, manifest 0.3, built with the official CLI) attached
+  to every GitHub release by the publish workflow. `npm run mcpb` builds it.
+- Add to Cursor and Install in VS Code buttons (hosted server), and an
+  install order that puts the no-install connector first.
+- A troubleshooting section: restarting properly, `check`, where each
+  client's logs are, Node version, the Windows npx note, corporate proxies.
+
 ## 0.2.4 - 2026-10-31
 
 - The registry listing names the hosted server, https://dogpolicies.com/mcp/, now that the site is live on Cloudflare.

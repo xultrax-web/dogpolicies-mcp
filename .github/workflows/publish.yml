@@ -17,7 +17,7 @@ on:
       - "v*"
 
 permissions:
-  contents: read
+  contents: write # the GitHub release that carries the Claude Desktop extension
   id-token: write # OIDC for npm trusted publishing and provenance
 
 jobs:
@@ -73,3 +73,28 @@ jobs:
           curl -fsSL "https://github.com/modelcontextprotocol/registry/releases/download/v1.8.7/mcp-publisher_linux_amd64.tar.gz" | tar xz mcp-publisher
           ./mcp-publisher login github-oidc
           ./mcp-publisher publish
+
+  extension:
+    name: Claude Desktop extension (.mcpb) on the GitHub release
+    needs: publish
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+      - run: npm ci
+      - name: Build the extension with the official mcpb CLI
+        run: npm run mcpb
+      - name: Create or update the GitHub release and attach the extension
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          v=$(node -p "require('./package.json').version")
+          f="dist/dogpolicies-mcp-$v.mcpb"
+          test -f "$f"
+          if gh release view "v$v" >/dev/null 2>&1; then
+            gh release upload "v$v" "$f" --clobber
+          else
+            gh release create "v$v" "$f" --title "dogpolicies-mcp $v" --notes "See CHANGELOG.md. The .mcpb file is the one-click Claude Desktop extension: download it and open it with Claude Desktop (Settings > Extensions > Install Extension). npm: https://www.npmjs.com/package/dogpolicies-mcp/v/$v"
+          fi

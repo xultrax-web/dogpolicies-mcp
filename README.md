@@ -30,65 +30,82 @@ Every fact comes from an official source (an agency page or the business's own p
 
 ## Install
 
-### Claude Code
+Pick the first one that fits; they all give the same server.
+
+### 1. Claude (claude.ai or Claude Desktop): add the hosted connector, nothing to install
+
+Settings → Connectors → **Add custom connector** → name **DogPolicies**, URL `https://dogpolicies.com/mcp/` → Add. Then turn it on in the chat's tools menu. No Node.js, no file editing; works on every plan that has connectors.
+
+### 2. Claude Desktop: one-click extension
+
+Download **dogpolicies-mcp-<version>.mcpb** from the [latest release](https://github.com/xultrax-web/dogpolicies-mcp/releases/latest) and open it (double-click, or Claude Desktop → Settings → Extensions → Install Extension). The data is inside; nothing else to install.
+
+### 3. One command, any client
 
 ```bash
-claude mcp add dogpolicies -- npx -y dogpolicies-mcp
+npx dogpolicies-mcp install                      # Claude Desktop (default)
+npx dogpolicies-mcp install --client cursor      # or vscode | windsurf | claude-code, or --all
+npx dogpolicies-mcp install --hosted             # the remote URL form instead of a local server
+npx dogpolicies-mcp install --dry-run            # show what would change, change nothing
 ```
 
-### Claude Desktop
+It finds the client's config on Windows, macOS and Linux, creates the file or the `mcpServers` key if missing, merges one entry without touching other settings, writes a timestamped backup first, refuses (and explains) a file it cannot parse, does nothing the second time, needs no admin rights, and prints the exact restart step. On Windows it writes the form that works (`cmd /c npx ...`). Requires Node.js 20.19 or newer.
 
-Settings → Developer → Edit Config, then add:
+### 4. One-click buttons (hosted server, no Node.js)
+
+[![Add to Cursor](https://img.shields.io/badge/Cursor-Add_DogPolicies-000000?logo=cursor&logoColor=white)](cursor://anysphere.cursor-deeplink/mcp/install?name=dogpolicies&config=eyJ1cmwiOiJodHRwczovL2RvZ3BvbGljaWVzLmNvbS9tY3AvIn0=)
+[![Install in VS Code](https://img.shields.io/badge/VS_Code-Install_DogPolicies-0098FF?logo=visualstudiocode&logoColor=white)](vscode:mcp/install?%7B%22name%22%3A%22dogpolicies%22%2C%22type%22%3A%22http%22%2C%22url%22%3A%22https%3A%2F%2Fdogpolicies.com%2Fmcp%2F%22%7D)
+[![Install in VS Code Insiders](https://img.shields.io/badge/VS_Code_Insiders-Install_DogPolicies-24bfa5?logo=visualstudiocode&logoColor=white)](vscode-insiders:mcp/install?%7B%22name%22%3A%22dogpolicies%22%2C%22type%22%3A%22http%22%2C%22url%22%3A%22https%3A%2F%2Fdogpolicies.com%2Fmcp%2F%22%7D)
+
+Both buttons add the hosted server at `https://dogpolicies.com/mcp/`; the client asks you to confirm.
+
+### 5. Claude Code
+
+```bash
+claude mcp add dogpolicies -- npx -y dogpolicies-mcp                      # macOS, Linux
+claude mcp add dogpolicies -- cmd /c npx -y dogpolicies-mcp               # Windows
+claude mcp add --transport http dogpolicies https://dogpolicies.com/mcp/   # hosted, any OS
+```
+
+### 6. By hand
+
+<details><summary>Claude Desktop</summary>
+
+Settings → Developer → Edit Config (the file is `%APPDATA%\Claude\claude_desktop_config.json` on Windows, `~/Library/Application Support/Claude/claude_desktop_config.json` on macOS). If the file has no `mcpServers` key yet, add one:
 
 ```json
 {
   "mcpServers": {
-    "dogpolicies": {
-      "command": "npx",
-      "args": ["-y", "dogpolicies-mcp"]
-    }
+    "dogpolicies": { "command": "npx", "args": ["-y", "dogpolicies-mcp"] }
   }
 }
 ```
 
-### Cursor
+On Windows use `"command": "cmd", "args": ["/c", "npx", "-y", "dogpolicies-mcp"]`. Then fully quit Claude Desktop (tray icon → Quit on Windows, Cmd+Q on macOS) and reopen it.
 
-Settings → MCP → Add new global MCP server (or `.cursor/mcp.json` in a project):
+</details>
 
-```json
-{
-  "mcpServers": {
-    "dogpolicies": {
-      "command": "npx",
-      "args": ["-y", "dogpolicies-mcp"]
-    }
-  }
-}
-```
+<details><summary>Cursor</summary>
 
-### VS Code
+`~/.cursor/mcp.json` (global) or `.cursor/mcp.json` in a project, same `mcpServers` block as above (Windows: the `cmd /c` form), or `{ "url": "https://dogpolicies.com/mcp/" }` for the hosted server.
 
-`.vscode/mcp.json` in a workspace, or **MCP: Add Server** from the command palette:
+</details>
 
-```json
-{
-  "servers": {
-    "dogpolicies": {
-      "type": "stdio",
-      "command": "npx",
-      "args": ["-y", "dogpolicies-mcp"]
-    }
-  }
-}
-```
+<details><summary>VS Code</summary>
 
-### Hosted (no install)
-
-The same tools are served over Streamable HTTP at `https://dogpolicies.com/mcp/` for clients that connect by URL:
+`~/.copilot/mcp-config.json` (what the guided flow calls Global → Copilot Global) with the same `mcpServers` block, or from a terminal:
 
 ```bash
-claude mcp add --transport http dogpolicies https://dogpolicies.com/mcp/
+code --add-mcp '{"name":"dogpolicies","type":"stdio","command":"npx","args":["-y","dogpolicies-mcp"]}'
 ```
+
+</details>
+
+<details><summary>Windsurf</summary>
+
+`~/.codeium/windsurf/mcp_config.json`, same `mcpServers` block, or `{ "serverUrl": "https://dogpolicies.com/mcp/" }`.
+
+</details>
 
 ### Local HTTP
 
@@ -96,7 +113,15 @@ claude mcp add --transport http dogpolicies https://dogpolicies.com/mcp/
 npx dogpolicies-mcp --http --port 3737     # http://127.0.0.1:3737/mcp
 ```
 
-Requires Node.js 20.19 or newer.
+## Troubleshooting
+
+- **It does not show up after installing.** Restart properly. Claude Desktop must be fully quit: right-click the tray icon (Windows) or Claude menu → Quit (macOS); closing the window leaves it running. Cursor: toggle the server in Settings → MCP. VS Code: MCP: List Servers → Start. Windsurf: Refresh in the MCP panel.
+- **Check the server itself.** `npx dogpolicies-mcp check` loads the data and calls every tool; `npx dogpolicies-mcp demo` prints a real answer. If these work, the problem is the client's config or restart.
+- **Where the client's logs are.** Claude Desktop: `%APPDATA%\Claude\logs\mcp.log` and `mcp-server-dogpolicies.log` (Windows), `~/Library/Logs/Claude/` (macOS). Cursor: Output panel → MCP Logs. VS Code: MCP: List Servers → Show Output. Claude Code: `claude mcp list`, or `--mcp-debug`.
+- **"spawn npx ENOENT" on Windows.** The client starts commands without a shell and `npx` is a `.cmd` file. Use `"command": "cmd", "args": ["/c", "npx", "-y", "dogpolicies-mcp"]` (the installer writes this), or the hosted connector.
+- **Node version.** `node --version` must be 20.19 or newer (`npx` comes with Node). The hosted connector and the Claude Desktop extension need no Node at all (the extension uses Claude Desktop's own).
+- **Behind a corporate proxy.** `npx` needs to reach registry.npmjs.org once to fetch the package; set `HTTPS_PROXY` (npm reads `npm config set proxy` too) or use the extension or the hosted connector, which need no npm. The server itself makes one background request to dogpolicies.com for newer data and works offline without it; set `DOGPOLICIES_OFFLINE=1` to never try.
+- **Still stuck?** Open an issue with the output of `npx dogpolicies-mcp check`, your OS and client: https://github.com/xultrax-web/dogpolicies-mcp/issues
 
 ## Try it in the terminal
 
