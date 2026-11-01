@@ -50,3 +50,26 @@ jobs:
         env:
           # Used only when trusted publishing is not configured; empty otherwise.
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      # The MCP Registry listing follows the npm release. GitHub OIDC proves this
+      # repository owns the io.github.xultrax-web/* namespace: no token needed.
+      - name: Check server.json matches the package version
+        run: |
+          v=$(node -p "require('./package.json').version")
+          test "$(node -p "require('./server.json').version")" = "$v"
+          test "$(node -p "require('./server.json').packages[0].version")" = "$v"
+
+      - name: Wait for npm to serve the new version
+        run: |
+          v=$(node -p "require('./package.json').version")
+          for i in $(seq 1 40); do
+            npm view "dogpolicies-mcp@$v" version >/dev/null 2>&1 && exit 0
+            sleep 15
+          done
+          echo "dogpolicies-mcp@$v not visible on npm after 10 minutes"; exit 1
+
+      - name: Publish to the MCP Registry
+        run: |
+          curl -fsSL "https://github.com/modelcontextprotocol/registry/releases/download/v1.8.7/mcp-publisher_linux_amd64.tar.gz" | tar xz mcp-publisher
+          ./mcp-publisher login github-oidc
+          ./mcp-publisher publish

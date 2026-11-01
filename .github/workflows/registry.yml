@@ -1,0 +1,33 @@
+# Re-publishes server.json to the MCP Registry by hand (Actions tab, "Run
+# workflow"), for when the listing needs updating without a new npm release.
+# Tag releases do this on their own at the end of publish.yml.
+
+name: Publish to the MCP Registry
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write # GitHub OIDC login to the registry
+
+jobs:
+  registry:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+
+      - name: Check the version in server.json is on npm
+        run: |
+          v=$(node -p "require('./server.json').packages[0].version")
+          npm view "dogpolicies-mcp@$v" version
+
+      - name: Publish to the MCP Registry
+        run: |
+          curl -fsSL "https://github.com/modelcontextprotocol/registry/releases/download/v1.8.7/mcp-publisher_linux_amd64.tar.gz" | tar xz mcp-publisher
+          ./mcp-publisher login github-oidc
+          ./mcp-publisher publish
