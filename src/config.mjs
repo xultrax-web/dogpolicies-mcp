@@ -4,10 +4,9 @@
 // Values can be overridden at runtime through the environment, so the same
 // build works before the domain is final and after it moves.
 
-import { createRequire } from "node:module";
-
-const require = createRequire(import.meta.url);
-const pkg = require("../package.json");
+// A static JSON import (import attributes, Node 20.10+), so bundlers that
+// target other runtimes (the site's Cloudflare Worker) can inline it.
+import pkg from "../package.json" with { type: "json" };
 
 /** The npm package name, from package.json (the single config point). */
 export const PACKAGE_NAME = pkg.name;

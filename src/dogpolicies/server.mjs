@@ -31,7 +31,9 @@ import { tools } from "./tools/index.mjs";
 import { resources } from "./resources.mjs";
 import { prompts } from "./prompts.mjs";
 
-const HERE = dirname(fileURLToPath(import.meta.url));
+// import.meta.url is undefined when the package is bundled for another runtime
+// (the site's Cloudflare Worker), which always passes a snapshot object instead.
+const HERE = import.meta.url ? dirname(fileURLToPath(import.meta.url)) : ".";
 export const BUNDLED_SNAPSHOT = join(
   HERE,
   "..",

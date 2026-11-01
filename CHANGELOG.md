@@ -10,6 +10,14 @@ The data inside the package has its own date (`as_of` in every result). A
 new package version ships a new snapshot; the server also refreshes from the
 site on its own when the network allows.
 
+## 0.2.4 - 2026-10-31
+
+- The registry listing names the hosted server, https://dogpolicies.com/mcp/, now that the site is live on Cloudflare.
+
+- Bundler-friendly for other runtimes: `package.json` is read with a static JSON import and the bundled snapshot
+  path is only resolved when `import.meta.url` exists. No change for npm users; the site's Cloudflare Worker now
+  runs this package inside a Durable Object.
+
 ## 0.2.3 - 2026-10-31
 
 - Smaller, cleaner install: the MCP client SDK is no longer a dependency. `demo`, `check` and `connectInProcess` use a small built-in client over the in-memory transport. The client SDK pulled in process-spawning and other code a server never runs, which supply-chain scanners flag.
