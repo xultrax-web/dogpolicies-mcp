@@ -8,13 +8,13 @@
     "url": "https://github.com/xultrax-web/dogpolicies-mcp",
     "source": "github"
   },
-  "version": "0.2.5",
+  "version": "0.2.6",
   "packages": [
     {
       "registryType": "npm",
       "registryBaseUrl": "https://registry.npmjs.org",
       "identifier": "dogpolicies-mcp",
-      "version": "0.2.5",
+      "version": "0.2.6",
       "runtimeHint": "npx",
       "transport": {
         "type": "stdio"

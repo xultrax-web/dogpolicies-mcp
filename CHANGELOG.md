@@ -10,6 +10,17 @@ The data inside the package has its own date (`as_of` in every result). A
 new package version ships a new snapshot; the server also refreshes from the
 site on its own when the network allows.
 
+## 0.2.6 - 2026-11-01
+
+Data release: the snapshot now carries data round 2.
+
+Changed
+
+- 2,669 places, up from 2,534: 135 newly verified parks, dog parks, trails,
+  beaches, hotels and restaurants, among them Sonoma County parks,
+  Midpeninsula preserves, Truckee, Healdsburg, Big Sur, June Lake, Morro Bay
+  and Palm Springs.
+
 ## 0.2.5 - 2026-11-01
 
 The install experience, after a hand install into Claude Desktop on Windows
