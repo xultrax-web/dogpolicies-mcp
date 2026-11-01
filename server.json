@@ -6,8 +6,7 @@
   "websiteUrl": "https://github.com/xultrax-web/dogpolicies-mcp#readme",
   "repository": {
     "url": "https://github.com/xultrax-web/dogpolicies-mcp",
-    "source": "github",
-    "subfolder": "packages/mcp"
+    "source": "github"
   },
   "version": "0.2.1",
   "packages": [
@@ -36,12 +35,6 @@
           "default": "https://dogpolicies.com"
         }
       ]
-    }
-  ],
-  "remotes": [
-    {
-      "type": "streamable-http",
-      "url": "https://dogpolicies.com/mcp/"
     }
   ],
   "_meta": {
