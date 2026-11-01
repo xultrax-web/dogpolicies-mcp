@@ -10,6 +10,10 @@ The data inside the package has its own date (`as_of` in every result). A
 new package version ships a new snapshot; the server also refreshes from the
 site on its own when the network allows.
 
+## 0.2.2 - 2026-10-31
+
+- Tests run on Node 20 again: `npm test` builds the file list itself instead of relying on `node --test` glob support (Node 22+). No change to the server.
+
 ## 0.2.1 - 2026-10-31
 
 - Fix: `@modelcontextprotocol/client` is a runtime dependency (the CLI's demo and check commands and the in-process connector import it). 0.2.0 failed to start when installed from npm.

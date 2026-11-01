@@ -1,6 +1,6 @@
 {
   "name": "dogpolicies-mcp",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "MCP server for verified dog rules at California and Nevada parks, beaches, trails, hotels, campgrounds and restaurant patios: leash rules, pet fees, weight limits, trip planning, every fact with its official source and the date it was checked.",
   "mcpName": "io.github.xultrax-web/dogpolicies-mcp",
   "type": "module",
@@ -42,8 +42,8 @@
     "build": "node scripts/build.mjs",
     "check": "node bin/dogpolicies-mcp.mjs check --offline",
     "demo": "node bin/dogpolicies-mcp.mjs demo --offline",
-    "test": "node --test \"test/*.test.mjs\"",
-    "test:e2e": "node --test test/e2e/*.test.mjs",
+    "test": "node test/run.mjs",
+    "test:e2e": "node test/run.mjs e2e",
     "inspect": "npx --yes @modelcontextprotocol/inspector --cli node bin/dogpolicies-mcp.mjs --offline --method tools/list",
     "prepack": "node scripts/prepack.mjs",
     "docs": "node scripts/docs.mjs",
