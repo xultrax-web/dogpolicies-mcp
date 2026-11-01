@@ -10,6 +10,22 @@ The data inside the package has its own date (`as_of` in every result). A
 new package version ships a new snapshot; the server also refreshes from the
 site on its own when the network allows.
 
+## 0.2.8 - 2026-11-01
+
+Data release: the snapshot now carries data round 4.
+
+Changed
+
+- 4,146 places, up from 3,484: 662 newly verified places. New coverage
+  includes the Central Valley (Stockton, Lodi, Modesto, Turlock), the North
+  State (Chico, Redding area, Eureka, Arcata, Fort Bragg), Bay Area towns
+  (Hayward, Concord, Napa, Dublin, Cupertino), Southern California towns
+  (Pasadena, Thousand Oaks, Camarillo, Santa Clarita, Murrieta), the San
+  Diego coast (Coronado, Carlsbad, Encinitas, Solana Beach), the Central
+  Coast (San Luis Obispo, Pismo Beach, Cambria, Hollister), the Eastern
+  Sierra and Nevada (Mammoth Lakes, Bishop, Mesquite), plus 42 cemeteries,
+  87 winery tasting rooms and 5 California missions.
+
 ## 0.2.7 - 2026-11-01
 
 Data release: the snapshot now carries data round 3.
