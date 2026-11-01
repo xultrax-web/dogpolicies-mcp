@@ -10,6 +10,19 @@ The data inside the package has its own date (`as_of` in every result). A
 new package version ships a new snapshot; the server also refreshes from the
 site on its own when the network allows.
 
+## 0.2.9 - 2026-11-01
+
+Data release: the snapshot now carries data round 5.
+
+Changed
+
+- 4,192 places, up from 4,146: Madera and Turlock now have full town
+  coverage, plus Hanford dog parks and Stanislaus County community parks
+  (Modesto, Keyes, Salida). Two Santa Clara County dog parks now cite
+  readable official sources.
+- The site serves the refresh snapshot compressed (same URL, same JSON);
+  nothing changes for clients.
+
 ## 0.2.8 - 2026-11-01
 
 Data release: the snapshot now carries data round 4.
