@@ -9,7 +9,7 @@ export const changesNear = (ctx) => ({
   title: "What changed near a town",
   since: "0.2.0",
   cache: true,
-  description: `Verification events (confirmed, changed, source gone, blocked, disputed) since a date for places within a radius of a town, county or point, newest first. The way to answer "has anything changed around Tahoe since my last trip?" or to re-check a saved itinerary. Use dogpolicies_changes_since for everything everywhere.
+  description: `Verification events (confirmed, changed, source gone, blocked, disputed) since a date for places within a radius of a town, county or point, newest first. The way to answer "has anything changed around Tahoe since my last trip?" or to re-check a saved itinerary.
 
 Example: "What changed near Monterey since September?" -> place="Monterey", since="2026-09-01"`,
   inputSchema: z.strictObject({

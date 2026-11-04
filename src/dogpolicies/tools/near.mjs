@@ -28,9 +28,9 @@ export const near = (ctx) => ({
   title: "What is near a town",
   since: "0.2.0",
   cache: true,
-  description: `Anything for dogs around a town, county or point: everything dog-related nearby, grouped by kind: beaches, parks, trails, hotels, campgrounds, cabins, places to eat and rest areas, each sorted by distance, with the dog rule and citation for each. The one call to make when a user names a place and asks "what can I do with my dog there?".
+  description: `Anything for dogs around a town, county or point: everything dog-related nearby, grouped by kind: beaches, parks, trails, hotels, campgrounds, cabins, places to eat and rest areas, each sorted by distance, with the dog rule and citation for each. Answers "what can I do with my dog there?" for a named place.
 
-Takes a town or county name (no coordinates needed) or a point. Use dogpolicies_find_hotels when the question is about a specific dog's weight or budget, dogpolicies_plan_trip for a whole stay, dogpolicies_search_places for one kind with filters.
+Takes a town or county name (no coordinates needed) or a point.
 
 Examples:
   - "What can my dog do in Carmel?" -> place="Carmel"

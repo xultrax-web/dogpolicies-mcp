@@ -1,8 +1,9 @@
 #!/usr/bin/env node
-// Writes assets/icon.png (256x256) with no dependencies: a rounded green
-// square with a white paw print. Run once; the PNG is committed. Replace the
-// file with designed artwork whenever one exists; the manifest only needs
-// a PNG at that path.
+// The original placeholder: writes assets/icon.png (256x256) with no
+// dependencies, a rounded green square with a white paw print. The committed
+// icon.png is now the DogPolicies mark (the dot-matrix dog on dark green),
+// written by scripts/brand/build.mjs in the site repository; do not run this
+// over it. Kept so a PNG can be made with no tooling if ever needed.
 //
 //   node scripts/icon.mjs
 

@@ -2,6 +2,8 @@
 
 **[dogpolicies.com](https://dogpolicies.com/)** · Verified dog rules for California and Nevada travel, for AI assistants. [Install guide and example](https://dogpolicies.com/mcp/about/).
 
+**Listed in Claude's connector directory** since November 4, 2026: [add DogPolicies in Claude](https://claude.ai/directory/dogpolicies) with nothing to install. DogPolicies is independent and not affiliated with Anthropic.
+
 Ask Claude, Cursor or any MCP client "can my 70 lb dog stay at a Monterey hotel for under $50?", "what can my dog do in Carmel?" or "plan three nights in Tahoe with two dogs" and get an answer with the official source, the date it was checked and a link to the record. No API key, no account, no configuration: the data ships inside the package.
 
 ```bash
@@ -34,7 +36,7 @@ Pick the first one that fits; they all give the same server.
 
 ### 1. Claude (claude.ai or Claude Desktop): add the hosted connector, nothing to install
 
-Settings → Connectors → **Add custom connector** → name **DogPolicies**, URL `https://dogpolicies.com/mcp/` → Add. Then turn it on in the chat's tools menu. No Node.js, no file editing; works on every plan that has connectors.
+Open [DogPolicies in Claude's connector directory](https://claude.ai/directory/dogpolicies) and add it, then turn it on in the chat's tools menu. Or by hand: Settings → Connectors → **Add custom connector** → name **DogPolicies**, URL `https://dogpolicies.com/mcp/` → Add. No Node.js, no file editing; works on every plan that has connectors.
 
 ### 2. Claude Desktop: one-click extension
 

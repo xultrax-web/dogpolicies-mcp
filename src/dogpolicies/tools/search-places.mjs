@@ -18,7 +18,7 @@ export const searchPlaces = (ctx) => ({
   cache: true,
   description: `Search parks, beaches, trails, hotels, campgrounds and cabin resorts in California and Nevada by name, location and dog rules.
 
-Returns one page of places with a one-line answer ("Yes, on a leash no longer than 6 feet."), status (yes, yes_restricted, no, varies), verification date and page URL. Use dogpolicies_get_place for full rules and sources, and dogpolicies_find_hotels to check a specific dog's weight and budget at hotels.
+Returns one page of places with a one-line answer ("Yes, on a leash no longer than 6 feet."), status (yes, yes_restricted, no, varies), verification date and page URL. Each result includes the place id.
 
 Examples:
   - "Off-leash beaches near San Diego" -> type="beach", off_leash=true, near={lat:32.72, lon:-117.16}

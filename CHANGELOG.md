@@ -10,6 +10,15 @@ The data inside the package has its own date (`as_of` in every result). A
 new package version ships a new snapshot; the server also refreshes from the
 site on its own when the network allows.
 
+## 0.2.10 - 2026-11-04
+
+- Listed in Claude's connector directory: the README and the install guide
+  link the listing, with adding it by URL kept as the alternative.
+- Tool servers take an `onToolResult` hook (tool name, arguments, result and
+  time) after each call, beside `onToolCall`; the hosted server uses it to
+  count failures by code and names asked for that are not in the data.
+- Fresh data snapshot.
+
 ## 0.2.9 - 2026-11-01
 
 Data release: the snapshot now carries data round 5.

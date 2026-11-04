@@ -51,6 +51,8 @@ export const findHotels = (ctx) => ({
   cache: true,
   description: `Find hotels and motels in California and Nevada that will take a specific dog, with the estimated pet fee for the stay.
 
+Every amount is the hotel's pet fee, never the room rate: DogPolicies has no room prices.
+
 Each hotel is sorted into "match" (the policy says yes on everything asked), "possible" (nothing rules it out, but something needs a call: a hotel that decides case by case, an unstated weight limit, a limit the hotel lifts with its approval, an "up to" fee) or excluded (left out). Matches come first, cheapest pet fee first. The fee arithmetic is spelled out for every result.
 
 Examples:
@@ -154,7 +156,7 @@ Examples:
       offset,
       items: page,
       key: "hotels",
-      header: `# ${counts.match} match, ${counts.possible} possible, ${counts.excluded} excluded (${asked.join(", ")})`,
+      header: `# ${counts.match} match, ${counts.possible} possible, ${counts.excluded} excluded (${asked.join(", ")}). Amounts are pet fees, not room rates.`,
       extra: { counts },
     });
   },

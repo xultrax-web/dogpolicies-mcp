@@ -48,7 +48,7 @@ import { stableStringify } from "./result.mjs";
 
 /**
  * @param {object} options
- * @param {{ name: string, title?: string, version: string }} options.identity
+ * @param {{ name: string, title?: string, version: string, websiteUrl?: string, icons?: { src: string, mimeType?: string, sizes?: string[] }[] }} options.identity
  * @param {string} options.instructions
  * @param {ToolDefinition[]} options.tools
  * @param {ResourceDefinition[]} [options.resources]
@@ -56,6 +56,7 @@ import { stableStringify } from "./result.mjs";
  * @param {() => string} options.dataVersion current data version, for the cache key
  * @param {object} [options.log]
  * @param {(name: string, ctx: object) => any} [options.onToolCall]
+ * @param {(name: string, ctx: object, done: { args: object, output: object, ms: number }) => any} [options.onToolResult] after the call, with its result and time
  * @param {number} [options.cacheSize]
  * @param {object} [options.stats] a counter object shared across servers
  * @param {string} [options.aliasPrefix] also register every tool under this prefix (older clients)
@@ -69,12 +70,19 @@ export function createToolServer({
   dataVersion = () => "",
   log,
   onToolCall,
+  onToolResult,
   cacheSize = 200,
   stats = { calls: 0, errors: 0, cacheHits: 0 },
   aliasPrefix = null,
 }) {
   const server = new McpServer(
-    { name: identity.name, title: identity.title, version: identity.version },
+    {
+      name: identity.name,
+      title: identity.title,
+      version: identity.version,
+      ...(identity.icons ? { icons: identity.icons } : {}),
+      ...(identity.websiteUrl ? { websiteUrl: identity.websiteUrl } : {}),
+    },
     {
       instructions,
       // Empty lists, not "method not found": directory scanners and some
@@ -116,13 +124,15 @@ export function createToolServer({
         output = toErrorResult(error, { log });
       }
       if (output.isError) stats.errors++;
+      const ms = performance.now() - started;
       try {
         await counted;
+        await onToolResult?.(tool.name, ctx, { args, output, ms });
       } catch {
         // counting never fails a call
       }
       log?.debug(
-        `${tool.name} ${output.isError ? "error" : "ok"} in ${(performance.now() - started).toFixed(1)} ms`,
+        `${tool.name} ${output.isError ? "error" : "ok"} in ${ms.toFixed(1)} ms`,
       );
       return output;
     };
@@ -131,7 +141,9 @@ export function createToolServer({
       description,
       inputSchema: tool.inputSchema,
       outputSchema: tool.outputSchema,
-      annotations: tool.annotations,
+      // The title also goes in the annotations: directories (Claude's among
+      // them) read annotations.title for the listing.
+      annotations: { title: tool.title, ...tool.annotations },
     };
     server.registerTool(tool.name, config, handler);
     // The old names, for clients configured before a rename.

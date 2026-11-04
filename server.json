@@ -3,18 +3,18 @@
   "name": "io.github.xultrax-web/dogpolicies-mcp",
   "title": "DogPolicies",
   "description": "Verified dog rules for California and Nevada travel: parks, beaches, hotels, fees, sourced and dated",
-  "websiteUrl": "https://github.com/xultrax-web/dogpolicies-mcp#readme",
+  "websiteUrl": "https://dogpolicies.com/mcp/about/",
   "repository": {
     "url": "https://github.com/xultrax-web/dogpolicies-mcp",
     "source": "github"
   },
-  "version": "0.2.9",
+  "version": "0.2.10",
   "packages": [
     {
       "registryType": "npm",
       "registryBaseUrl": "https://registry.npmjs.org",
       "identifier": "dogpolicies-mcp",
-      "version": "0.2.9",
+      "version": "0.2.10",
       "runtimeHint": "npx",
       "transport": {
         "type": "stdio"

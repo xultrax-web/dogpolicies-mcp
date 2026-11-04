@@ -14,7 +14,7 @@ export const reportCorrection = (ctx) => ({
   name: "dogpolicies_report_correction",
   title: "Report a correction",
   since: "0.1.0",
-  description: `File a correction when a user says a rule on a record is wrong or has changed (a fee went up, a beach closed to dogs, a hotel now takes two pets). The report goes to a person who re-reads the official source; nothing is published automatically and the record does not change until it is verified. Give the place id, what is wrong in a sentence or two, and the official page the user saw, if any. Never send personal details beyond an optional contact the user offers.`,
+  description: `File a correction when a user says a rule on a record is wrong or has changed (a fee went up, a beach closed to dogs, a hotel now takes two pets). The report goes to a person who re-reads the official source; nothing is published automatically and the record does not change until it is verified. Takes the place id, a sentence or two on what is wrong, and optionally the official page the user saw. The only personal detail it accepts is an optional contact the user offers.`,
   inputSchema: z.strictObject({
     place_id: z
       .string()

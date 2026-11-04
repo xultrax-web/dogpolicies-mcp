@@ -24,7 +24,7 @@ export const comparePlaces = (ctx) => ({
   cache: true,
   description: `Which one is better for a dog? Compare two to six places on the facts that decide a dog trip: dogs allowed, leash rule, where dogs may go, pet fee, weight limit, pets per room, restrictions, plus confidence, freshness and who confirmed each record. One row per fact, one column per place, every place with its citation.
 
-Use after a search returned candidates and the user asks "which one?". Ids come from any search result. Example: ids=["carmel-beach","asilomar-state-beach"].`,
+Answers "which one?" between candidates; ids come from any search result. Example: ids=["carmel-beach","asilomar-state-beach"].`,
   inputSchema: z.strictObject({
     ids: z
       .array(z.string().min(2).max(120))

@@ -29,7 +29,7 @@ export const planTrip = (ctx) => ({
   cache: true,
   description: `Plan a stay in a California or Nevada town with a dog, in one call: where to stay (hotels, campgrounds and cabins that will take this dog, with the pet fee for the whole stay worked out), what to do (beaches, parks and trails that allow dogs, nearest first) and where to eat (patios that take dogs), every item with its citation.
 
-Give the town or county and the dog: weight, how many dogs, nights, and the most the user will pay in pet fees. Use dogpolicies_route_stops for the drive there and dogpolicies_near for a quick list without the stay check.
+Inputs: the town or county and the dog: weight, how many dogs, nights, and the most the user will pay in pet fees.
 
 Examples:
   - "Three nights in Monterey with our 70 lb Lab, pet fees under $100" -> place="Monterey", dog_weight_lb=70, nights=3, max_total_fee=100

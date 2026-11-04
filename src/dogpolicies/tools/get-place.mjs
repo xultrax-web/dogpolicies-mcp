@@ -37,9 +37,9 @@ export const getPlace = (ctx) => ({
   title: "Get place details",
   since: "0.1.0",
   cache: true,
-  description: `The full record for one place you already know by id: every dog rule with its display text, the rules list, and each source with its URL, publisher, capture date and quote. Full rules and sources for one place: every fact with its display text, the rules list, and each source with its URL, publisher, capture date and quote.
+  description: `The full record for one place you already know by id: every dog rule with its display text, the rules list, and each source with its URL, publisher, capture date and quote.
 
-Use after dogpolicies_search_places or dogpolicies_find_hotels, which return ids. Example: id="carmel-beach".`,
+Takes a place id, as returned in every search result. Example: id="carmel-beach".`,
   inputSchema: z.strictObject({
     id: z.string().min(2).max(120).describe('Place id, e.g. "fort-funston"'),
     response_format: pageSchema.response_format,
