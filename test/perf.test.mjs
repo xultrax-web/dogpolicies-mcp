@@ -6,11 +6,14 @@ import { strict as assert } from "node:assert";
 import { createRuntime } from "../src/dogpolicies/server.mjs";
 import { call, sharedRuntime, text, withClient } from "./helpers.mjs";
 
+// Shared CI runners (GitHub's macOS ones above all) are noisy neighbors: the
+// time budgets double there; on a developer machine they hold as written.
+const SLACK = process.env.CI ? 2 : 1;
 const BUDGET = {
-  loadMs: 2500, // gunzip + parse + index the bundled snapshot
-  searchP95Ms: 60, // a text search over every place
-  detailP95Ms: 10, // a lookup by id
-  hotelsP95Ms: 60, // a county of hotels evaluated against a dog
+  loadMs: 2500 * SLACK, // gunzip + parse + index the bundled snapshot
+  searchP95Ms: 60 * SLACK, // a text search over every place
+  detailP95Ms: 10 * SLACK, // a lookup by id
+  hotelsP95Ms: 60 * SLACK, // a county of hotels evaluated against a dog
   memoryMb: 350, // heap after load
   textChars: 25_000, // the budget every tool honors
 };
