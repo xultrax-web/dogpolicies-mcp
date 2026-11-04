@@ -8,13 +8,13 @@
     "url": "https://github.com/xultrax-web/dogpolicies-mcp",
     "source": "github"
   },
-  "version": "0.2.10",
+  "version": "0.3.0",
   "packages": [
     {
       "registryType": "npm",
       "registryBaseUrl": "https://registry.npmjs.org",
       "identifier": "dogpolicies-mcp",
-      "version": "0.2.10",
+      "version": "0.3.0",
       "runtimeHint": "npx",
       "transport": {
         "type": "stdio"
@@ -48,7 +48,7 @@
       "tool": "dogpolicies-release",
       "license": "code MIT; data CC BY 4.0 (chain-hotel names and locations ODbL)",
       "coverage": "California and Nevada",
-      "tools": 13
+      "tools": 15
     }
   }
 }

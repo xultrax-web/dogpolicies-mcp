@@ -15,6 +15,7 @@ import {
   result,
   summary,
 } from "./common.mjs";
+import { I5, axisOf, pairRow, pairLine } from "../i5.mjs";
 
 const PlaceDetail = PlaceItem.extend({
   ...Envelope,
@@ -30,6 +31,21 @@ const PlaceDetail = PlaceItem.extend({
     }),
   ),
   review_due: z.string(),
+  axis: z
+    .looseObject({
+      route: z.string(),
+      s: z.number(),
+      mile: z.number(),
+      offM: z.number(),
+      side: z.string(),
+      ele: z.number(),
+      strip: z.string(),
+    })
+    .nullable()
+    .describe(
+      "Where the place sits on the I-5 axis: s meters from San Ysidro, Caltrans mile, meters off the road, side of northbound travel, road elevation, strip; null off I-5",
+    ),
+  paired_stop: z.looseObject({}).nullable(),
 });
 
 export const getPlace = (ctx) => ({
@@ -37,7 +53,7 @@ export const getPlace = (ctx) => ({
   title: "Get place details",
   since: "0.1.0",
   cache: true,
-  description: `The full record for one place you already know by id: every dog rule with its display text, the rules list, and each source with its URL, publisher, capture date and quote.
+  description: `The full record for one place you already know by id: every dog rule with its display text, the rules list, and each source with its URL, publisher, capture date and quote. A place on I-5 in California also carries its axis position (s meters from San Ysidro on the I-5 centerline, Caltrans mile, meters off the road, side of northbound travel, road elevation, strip) and, when it is the dog side of a paired stop, that pair: the exit and the people-stops near it (counted from OpenStreetMap, never named, not verified for restrooms).
 
 Takes a place id, as returned in every search result. Example: id="carmel-beach".`,
   inputSchema: z.strictObject({
@@ -56,6 +72,11 @@ Takes a place id, as returned in every search result. Example: id="carmel-beach"
     const today = ctx.today();
     const fresh = placeFreshness(p, today);
     const rules = p.rule_records.map((r) => ruleWithFreshness(r, today));
+    const axis = axisOf(ctx.graph.routes[I5]);
+    const pair = axis
+      ? (axis.paired ?? []).find((x) => x.dogStop.placeId === p.id)
+      : null;
+    const pairedStop = pair ? pairRow(pair, ctx.graph) : null;
     const data = {
       ...ctx.citations.envelope(ctx.graph.as_of),
       ...summary(p, today),
@@ -70,6 +91,8 @@ Takes a place id, as returned in every search result. Example: id="carmel-beach"
       sources: p.sources,
       review_due: p.review_due,
       record_license: p.record_license,
+      axis: p.axis ?? null,
+      paired_stop: pairedStop,
       ...(p.osm ? { attribution: OSM_ATTRIBUTION } : {}),
     };
     const ruleBy = Object.fromEntries(rules.map((r) => [r.kind, r]));
@@ -87,6 +110,20 @@ Takes a place id, as returned in every search result. Example: id="carmel-beach"
       ...p.not_stated.map((l) => `- ${l}: not stated by the source`),
       ...(p.rules.length
         ? ["", "Rules:", ...p.rules.map((r) => `- ${r}`)]
+        : []),
+      ...(p.axis
+        ? [
+            "",
+            `On I-5 at mile ${p.axis.mile.toFixed(1)}, ${(p.axis.offM / 1609.344).toFixed(1)} mi off the freeway, ${p.axis.side === "both" ? "both directions" : p.axis.side === "right" ? "northbound side" : "southbound side"}, road at ${Math.round(p.axis.ele * 3.28084).toLocaleString("en-US")} ft (${p.axis.ele} m) elevation.`,
+          ]
+        : []),
+      ...(pairedStop
+        ? [
+            "",
+            "Paired stop (the dog side of an exit pairing):",
+            pairLine(pairedStop),
+            "Exit numbers and people-stop counts are OpenStreetMap data (ODbL); restrooms at a people-stop are not verified.",
+          ]
         : []),
       "",
       "Sources:",

@@ -15,6 +15,8 @@ import { near } from "./near.mjs";
 import { planTrip } from "./plan-trip.mjs";
 import { comparePlaces } from "./compare-places.mjs";
 import { changesNear } from "./changes-near.mjs";
+import { i5Corridor } from "./i5-corridor.mjs";
+import { i5Conditions } from "./i5-conditions.mjs";
 
 export const tools = [
   searchPlaces,
@@ -26,6 +28,8 @@ export const tools = [
   getBrandPolicy,
   browseAnswers,
   routeStops,
+  i5Corridor,
+  i5Conditions,
   getRule,
   changesSince,
   changesNear,

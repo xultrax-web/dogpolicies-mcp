@@ -54,6 +54,8 @@ function placeRecord(
     brand_id: p.brandId ?? null,
     address: [p.address, p.city, p.zip].filter(Boolean).join(", ") || null,
     exit: p.exit ?? null,
+    // The I-5 axis position (s, offM, side, ele, strip, mile), or absent.
+    axis: p.axis ?? undefined,
     // The typed facts the matcher reads: fee, weight limit, pet count, leash, inheritance.
     facts: Object.fromEntries(
       Object.entries(p.facts).map(([k, f]) => [
@@ -230,9 +232,10 @@ export function towns(places) {
  * @param {Function} deps.ruleJson
  * @param {Array} deps.answers from getAnswers(graph)
  * @param {object} deps.routeGuides ROUTE_GUIDES
+ * @param {object} [deps.axes] per route id, the axis block (src/lib/axis-snapshot.mjs)
  */
 export function buildSnapshot(graph, deps) {
-  const { site, answers, routeGuides } = deps;
+  const { site, answers, routeGuides, axes = {} } = deps;
   const regionName = Object.fromEntries(
     graph.regions.map((r) => [r.id, r.name]),
   );
@@ -276,6 +279,8 @@ export function buildSnapshot(graph, deps) {
           length_miles: r.lengthMiles,
           heading: routeGuides[id]?.heading === "east" ? "east" : "north",
           points: r.points,
+          // The I-5 axis: calibration table, strips, paired stops (0.3.0).
+          ...(axes[id] ? { axis: axes[id] } : {}),
           stops: (graph.corridors[id] ?? []).map((s) =>
             clean({
               place_id: s.place.id,
@@ -283,6 +288,13 @@ export function buildSnapshot(graph, deps) {
               off_miles: s.offMiles,
               via: s.via,
               side: s.side,
+              // The I-5 axis: s in meters, side of northbound travel,
+              // elevation, strip (src/lib/axis.mjs).
+              s_m: s.axis?.s,
+              off_m: s.axis?.offM,
+              axis_side: s.axis?.side,
+              elevation_m: s.axis?.ele,
+              strip: s.axis?.strip,
             }),
           ),
         },

@@ -10,6 +10,34 @@ The data inside the package has its own date (`as_of` in every result). A
 new package version ships a new snapshot; the server also refreshes from the
 site on its own when the network allows.
 
+## 0.3.0 - 2026-11-04
+
+The I-5 axis: every I-5 stop in California carries its position on the I-5
+centerline (s meters from San Ysidro, the same number the corridor JSON and
+the simulator use) beside its Caltrans mile.
+
+Added
+
+- `dogpolicies_route_stops`: `ahead_miles` (a window from the start in the
+  direction of travel), `family` (only stops whose official source states
+  restrooms and a pet area or dog park) and `paired` (exits with people-stops
+  nearby, counted from OpenStreetMap and never named, matched to the nearest
+  dog-legal place). On I-5 every stop returns `s_m`, `miles_ahead`, `side`,
+  `off_miles`, `elevation_m`, `strip`, `restrooms`, `water`, `pet_area`,
+  `dog_park`, `hours` (with its source) and `family_stop`.
+- `dogpolicies_i5_corridor`: the eleven stretches of I-5 in California with
+  their s and mile ranges, and the stops in a stretch, a mile range or a
+  window ahead of a point.
+- `dogpolicies_i5_conditions`: Caltrans lane closures, road-weather readings,
+  message-sign text and chain-control status on I-5, fetched within the last
+  15 minutes and placed on the axis; conditions, not rules. Needs the network.
+- `dogpolicies_get_place` returns `axis` and, for the dog side of a pairing,
+  `paired_stop`. `dogpolicies_plan_trip` returns `i5` (the drive leg's family
+  stops and paired stops) when the town is within 10 miles of I-5.
+- Resource `dogpolicies://corridor/i-5`; prompt `drive_i5_with_dog`.
+- The `hours` fact, in the source's own words.
+- The snapshot carries the I-5 calibration table, strips and paired stops.
+
 ## 0.2.10 - 2026-11-04
 
 - Listed in Claude's connector directory: the README and the install guide

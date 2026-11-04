@@ -121,6 +121,7 @@
         "as_of",
         "attribution_text",
         "attribution_url",
+        "axis",
         "citation",
         "confidence",
         "confirmed_by",
@@ -130,6 +131,7 @@
         "license",
         "name",
         "not_stated",
+        "paired_stop",
         "record_license",
         "review_due",
         "rule_records",
@@ -147,6 +149,7 @@
         "as_of",
         "attribution_text",
         "attribution_url",
+        "axis",
         "citation",
         "confidence",
         "confirmed_by",
@@ -156,6 +159,7 @@
         "license",
         "name",
         "not_stated",
+        "paired_stop",
         "record_license",
         "review_due",
         "rule_records",
@@ -240,6 +244,7 @@
         "asked",
         "attribution_text",
         "attribution_url",
+        "i5",
         "label",
         "license",
         "outings",
@@ -252,6 +257,7 @@
         "asked",
         "attribution_text",
         "attribution_url",
+        "i5",
         "label",
         "license",
         "outings",
@@ -419,10 +425,12 @@
     "input": {
       "required": [],
       "properties": [
+        "ahead_miles",
         "direction",
         "dog_friendly_only",
         "dog_weight_lb",
         "dogs",
+        "family",
         "from_mile",
         "kinds",
         "limit",
@@ -430,6 +438,7 @@
         "near",
         "nights",
         "offset",
+        "paired",
         "response_format",
         "route",
         "to_mile"
@@ -458,12 +467,123 @@
         "has_more",
         "license",
         "offset",
+        "paired_stops",
         "route",
+        "start",
         "stops",
         "total"
       ]
     },
     "since": "0.1.0",
+    "deprecated": null
+  },
+  "dogpolicies_i5_corridor": {
+    "title": "I-5 corridor by stretch",
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    },
+    "input": {
+      "required": [],
+      "properties": [
+        "ahead_miles",
+        "direction",
+        "dog_friendly_only",
+        "family",
+        "from_mile",
+        "kinds",
+        "limit",
+        "near",
+        "offset",
+        "paired",
+        "response_format",
+        "strip",
+        "to_mile"
+      ]
+    },
+    "output": {
+      "required": [
+        "as_of",
+        "attribution_text",
+        "attribution_url",
+        "axis_version",
+        "license",
+        "paired_stops",
+        "stops",
+        "strips",
+        "total",
+        "window"
+      ],
+      "properties": [
+        "as_of",
+        "attribution_text",
+        "attribution_url",
+        "axis_version",
+        "license",
+        "paired_stops",
+        "stops",
+        "strips",
+        "total",
+        "window"
+      ]
+    },
+    "since": "0.3.0",
+    "deprecated": null
+  },
+  "dogpolicies_i5_conditions": {
+    "title": "I-5 conditions now",
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    },
+    "input": {
+      "required": [],
+      "properties": [
+        "ahead_miles",
+        "direction",
+        "from_mile",
+        "near",
+        "response_format",
+        "to_mile"
+      ]
+    },
+    "output": {
+      "required": [
+        "as_of",
+        "attribution_text",
+        "attribution_url",
+        "chain_controls",
+        "chains_in_effect",
+        "closures",
+        "fetched_at",
+        "license",
+        "notice",
+        "signs",
+        "source",
+        "weather",
+        "window"
+      ],
+      "properties": [
+        "as_of",
+        "attribution_text",
+        "attribution_url",
+        "chain_controls",
+        "chains_in_effect",
+        "closures",
+        "fetched_at",
+        "license",
+        "notice",
+        "signs",
+        "source",
+        "weather",
+        "window"
+      ]
+    },
+    "since": "0.3.0",
     "deprecated": null
   },
   "dogpolicies_get_rule": {

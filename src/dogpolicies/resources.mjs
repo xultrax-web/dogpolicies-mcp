@@ -9,6 +9,7 @@
 //   dogpolicies://brand/{id}            one brand policy
 //   dogpolicies://answer/{slug}         one answered question's places
 //   dogpolicies://route/{id}            one highway's dog stops
+//   dogpolicies://corridor/i-5          the I-5 corridor: strips and stops by s
 
 import { BRAND, PACKAGE_NAME, PACKAGE_VERSION } from "../config.mjs";
 import { tools } from "./tools/index.mjs";
@@ -54,7 +55,7 @@ export const resources = (ctx) => [
         "",
         "## Resources",
         "",
-        "- dogpolicies://place/{id}, dogpolicies://brand/{id}, dogpolicies://answer/{slug}, dogpolicies://route/{id}, dogpolicies://area/{id}, dogpolicies://answers, dogpolicies://status",
+        "- dogpolicies://place/{id}, dogpolicies://brand/{id}, dogpolicies://answer/{slug}, dogpolicies://route/{id}, dogpolicies://area/{id}, dogpolicies://corridor/i-5, dogpolicies://answers, dogpolicies://status",
         "",
         "## Areas",
         "",
@@ -204,6 +205,53 @@ export const resources = (ctx) => [
         limit: 50,
       });
       return r.isError ? null : { text: r.content[0].text };
+    },
+  },
+  {
+    name: "corridor-i5",
+    uri: "dogpolicies://corridor/i-5",
+    title: "I-5 corridor",
+    description:
+      "I-5 in California as eleven stretches on the I-5 centerline (s meters from San Ysidro), with every dog stop at its s, the family stops and the paired stops",
+    mimeType: JSON_TYPE,
+    cacheHint: { ttlMs: 3_600_000, cacheScope: "public" },
+    read: () => {
+      const route = ctx.graph.routes["i-5"];
+      const axis = route?.axis;
+      if (!axis) return null;
+      const stops = route.stops
+        .filter((s) => s.s_m != null)
+        .map((s) => ({
+          id: s.place.id,
+          name: s.place.name,
+          type: s.place.type,
+          s_m: s.s_m,
+          mile: s.mile,
+          side: s.axis_side,
+          off_miles: s.off_miles,
+          elevation_m: s.elevation_m,
+          strip: s.strip,
+          status: s.place.status,
+          url: s.place.url,
+        }));
+      return {
+        text: JSON.stringify(
+          {
+            route: "i-5",
+            axis_version: axis.version,
+            origin: axis.origin,
+            ca_end_s: axis.ca_end_s,
+            strips: axis.strips,
+            stops,
+            paired_stops: axis.paired,
+            osm_note:
+              "Exit numbers, names and people-stop counts are OpenStreetMap data (ODbL, (c) OpenStreetMap contributors); restrooms at a people-stop are not verified.",
+            as_of: ctx.graph.as_of,
+          },
+          null,
+          1,
+        ),
+      };
     },
   },
   {

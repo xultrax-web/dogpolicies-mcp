@@ -23,7 +23,7 @@ npx dogpolicies-mcp demo
 - Whether dogs are allowed at 2,400+ parks, beaches, trails, hotels, campgrounds, cabin resorts and restaurant patios, with leash rules, restrictions, weight limits and pet fees.
 - Which hotel will take _your_ dog: weight, number of dogs, nights and a fee budget, with the fee arithmetic spelled out ("2 dogs x 3 nights x $25 per pet per night = $150, capped at $100 per stay").
 - A whole trip in one call: where to stay with this dog, what to do, where to eat, near any town or county.
-- Dog-friendly stops along I-5, US-101, Highway 1, I-15, I-80, US-50, US-95 and US-93, in driving order.
+- Dog-friendly stops along I-5, US-101, Highway 1, I-15, I-80, US-50, US-95 and US-93, in driving order. On I-5 in California, every stop sits on the I-5 centerline (s meters from San Ysidro) with its side, elevation and stretch; the next family stop (restrooms and a pet area stated by the source) in N miles; paired exits; and Caltrans conditions right now.
 - Hotel chain pet policies (Motel 6, Red Roof, Kimpton and more) and which properties are exceptions.
 - Side-by-side comparisons, and what changed since a date, everywhere or near a town.
 - Areas the way travelers name them: East Bay, Lake Tahoe, Big Sur, Yosemite, Death Valley, the Mendocino Coast and the Bay Area's metros, as a filter, a place name in `near` and `plan_trip`, and a resource.
@@ -154,7 +154,9 @@ The `demo` output is the exact text an assistant receives:
 | `dogpolicies_find_hotels`       | Hotels that take a specific dog: weight, number of dogs, nights, fee budget. Verdicts (match, possible, excluded), cheapest first, fee arithmetic shown.              |
 | `dogpolicies_get_brand_policy`  | A chain's published pet policy, its listed exceptions and property counts.                                                                                            |
 | `dogpolicies_browse_answers`    | Ready-made answers to common questions ("Which California state parks allow dogs?").                                                                                  |
-| `dogpolicies_route_stops`       | Dog stops along a highway by mile and direction: rest areas with pet areas, hotels, campgrounds, parks, beaches.                                                      |
+| `dogpolicies_route_stops`       | Dog stops along a highway by mile and direction: rest areas with pet areas, hotels, campgrounds, parks, beaches. On I-5 in California: s meters from San Ysidro, side, elevation, family stops (restrooms and a pet area stated) and paired exits. |
+| `dogpolicies_i5_corridor`       | I-5 in California as eleven stretches on the I-5 centerline, and the stops in a stretch, a mile range or a window ahead of a point.                                  |
+| `dogpolicies_i5_conditions`     | Caltrans closures, road weather, sign text and chain controls on I-5 right now, placed on the same axis; conditions, not rules. Needs the network.                   |
 | `dogpolicies_get_rule`          | One rule by its stable id, with source, quote, confidence, verified date and freshness.                                                                               |
 | `dogpolicies_changes_since`     | Verification events and rule changes since a date, newest first.                                                                                                      |
 | `dogpolicies_changes_near`      | The same, limited to a radius around a town or point.                                                                                                                 |
@@ -164,7 +166,7 @@ Every tool returns readable markdown by default and structured JSON (`response_f
 
 ### Resources and prompts
 
-Resources let a client attach a record without a tool call: `dogpolicies://place/{id}`, `dogpolicies://brand/{id}`, `dogpolicies://answer/{slug}`, `dogpolicies://route/{id}`, `dogpolicies://area/{id}` (all with completion), plus `dogpolicies://about`, `dogpolicies://answers` and `dogpolicies://status`. Prompts give a client's slash menu the common trips: `plan_dog_trip`, `check_hotel_for_dog`, `road_trip_with_dog`, `what_can_my_dog_do_here`, `cite_a_rule`, with town-name completion.
+Resources let a client attach a record without a tool call: `dogpolicies://place/{id}`, `dogpolicies://brand/{id}`, `dogpolicies://answer/{slug}`, `dogpolicies://route/{id}`, `dogpolicies://area/{id}` (all with completion), plus `dogpolicies://about`, `dogpolicies://answers`, `dogpolicies://status` and `dogpolicies://corridor/i-5` (the I-5 stretches and every stop by s). Prompts give a client's slash menu the common trips: `plan_dog_trip`, `check_hotel_for_dog`, `road_trip_with_dog`, `drive_i5_with_dog`, `what_can_my_dog_do_here`, `cite_a_rule`, with town-name completion.
 
 ## How the data stays current
 

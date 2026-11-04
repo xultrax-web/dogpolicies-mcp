@@ -40,6 +40,7 @@ const [
   { site },
   { ROUTE_GUIDES },
   { buildSnapshot },
+  { axisSnapshot },
 ] = await Promise.all([
   import("../../../src/lib/data.mjs"),
   import("../../../src/lib/answers.mjs"),
@@ -49,6 +50,7 @@ const [
   import("../../../src/config/site.mjs"),
   import("../../../src/config/routes.mjs"),
   import("../src/snapshot/build.mjs"),
+  import("../../../src/lib/axis-snapshot.mjs"),
 ]);
 
 const graph = loadGraph();
@@ -61,6 +63,7 @@ const snapshot = buildSnapshot(graph, {
   ruleJson,
   answers: getAnswers(graph),
   routeGuides: ROUTE_GUIDES,
+  axes: { "i-5": axisSnapshot(graph) },
 });
 const json = JSON.stringify(snapshot);
 mkdirSync(join(PKG, "data"), { recursive: true });

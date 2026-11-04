@@ -109,6 +109,29 @@ export const prompts = (ctx) => {
       ],
     },
     {
+      name: "drive_i5_with_dog",
+      title: "Driving I-5 with my dog",
+      description:
+        "The drive on I-5 in California: the next family stops (restrooms and a pet area) and paired exits ahead, with conditions now",
+      argsSchema: {
+        from: town("Where the drive starts on I-5, e.g. \"Stockton\" or \"Bakersfield\""),
+        direction: completable(
+          z.string().max(5).describe("north or south"),
+          () => ["north", "south"],
+        ),
+        ahead_miles: z
+          .string()
+          .max(4)
+          .optional()
+          .describe("How far ahead to look, in miles (default 60)"),
+      },
+      build: ({ from, direction, ahead_miles }) => [
+        user(
+          `I am driving ${direction} on I-5 from ${from} with my dog and need the next places where the whole family can use a restroom, the dog included. Call dogpolicies_near with place="${from}" to get the starting point, then dogpolicies_route_stops with route="i-5", near set to that point, direction="${direction}", ahead_miles=${ahead_miles || 60}, family=true and paired=true. Then call dogpolicies_i5_conditions with the same near, direction and ahead_miles. List the family stops in driving order with miles ahead, side, hours and water as stated; then the paired exits, saying plainly that the people-stops come from OpenStreetMap and are not verified for restrooms; then any closure, chain control or sign text in the window with the time it was fetched. ${CITE}`,
+        ),
+      ],
+    },
+    {
       name: "what_can_my_dog_do_here",
       title: "What can my dog do here?",
       description:

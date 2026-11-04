@@ -81,6 +81,7 @@ test("prompts: list, argument completion for towns, and a built message that nam
     assert.deepEqual(prompts.map((p) => p.name).sort(), [
       "check_hotel_for_dog",
       "cite_a_rule",
+      "drive_i5_with_dog",
       "plan_dog_trip",
       "road_trip_with_dog",
       "what_can_my_dog_do_here",

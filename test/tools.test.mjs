@@ -16,6 +16,8 @@ const NAMES = [
   "dogpolicies_get_brand_policy",
   "dogpolicies_get_place",
   "dogpolicies_get_rule",
+  "dogpolicies_i5_conditions",
+  "dogpolicies_i5_corridor",
   "dogpolicies_near",
   "dogpolicies_plan_trip",
   "dogpolicies_report_correction",
