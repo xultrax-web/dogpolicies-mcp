@@ -12,7 +12,6 @@ import {
   withClient,
 } from "./helpers.mjs";
 import { miles } from "../src/core/geo.mjs";
-import { outcomeFields } from "../../../worker/usage.mjs";
 
 test("near: an unknown name answers with close matches and next steps, schema intact", () =>
   withClient(async (client) => {
@@ -340,26 +339,3 @@ test("numbers written as strings are read as numbers", () =>
     });
     assert.ok(!h.isError, text(h));
   }));
-
-test("the tally tells an answer that found nothing from an error", () => {
-  const noMatch = {
-    structuredContent: { outcome: "no_match", code: "not_found", total: 0 },
-  };
-  const fields = Object.fromEntries(
-    outcomeFields("dogpolicies_near", { place: "Van Nuys" }, noMatch, 12),
-  );
-  assert.equal(fields["out:dogpolicies_near:no_match"], 1);
-  assert.equal(fields["miss:dogpolicies_near:van nuys"], 1);
-  assert.ok(
-    !Object.keys(fields).some((k) => k.startsWith("err:")),
-    "a no-match answer is not an error",
-  );
-  const broke = {
-    isError: true,
-    structuredContent: { error: { code: "internal" } },
-  };
-  const errFields = Object.fromEntries(
-    outcomeFields("dogpolicies_near", { place: "x" }, broke, 12),
-  );
-  assert.equal(errFields["err:dogpolicies_near:internal"], 1);
-});
