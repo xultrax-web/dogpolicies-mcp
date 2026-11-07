@@ -6,10 +6,15 @@ import {
   PlaceItem,
   Envelope,
   OSM_ATTRIBUTION,
+  OutcomeFields,
+  answer,
+  nearestTo,
+  nearestTowns,
+  noMatchText,
   summary,
   summaryLine,
 } from "./common.mjs";
-import { resolveScope, scopeSchema } from "./scope.mjs";
+import { resolveScope, scopeAnswer, scopeSchema } from "./scope.mjs";
 
 export const GROUPS = [
   ["beach", "Beaches"],
@@ -23,6 +28,11 @@ export const GROUPS = [
   ["stop", "Roadside stops"],
 ];
 
+// When nothing sits inside the radius asked for, the search widens to these
+// before giving up; the answer says which radius it used.
+const WIDER = [30, 60, 100];
+const num = () => z.coerce.number();
+
 export const near = (ctx) => ({
   name: "dogpolicies_near",
   title: "What is near a town",
@@ -30,11 +40,12 @@ export const near = (ctx) => ({
   cache: true,
   description: `Anything for dogs around a town, county or point: everything dog-related nearby, grouped by kind: beaches, parks, trails, hotels, campgrounds, cabins, places to eat and rest areas, each sorted by distance, with the dog rule and citation for each. Answers "what can I do with my dog there?" for a named place.
 
-Takes a town or county name (no coordinates needed) or a point.
+Takes a town, county, area, region or neighborhood name (no coordinates needed) or a point. Small spelling slips are corrected and labeled. When nothing is inside the radius, the search widens on its own (to 30, 60, then 100 miles) and says so; when the data has nothing near at all, the answer lists the nearest records anyway, so there is always something to offer. A name the data does not know comes back with close matches (did_you_mean) and what to call next, not an error.
 
 Examples:
   - "What can my dog do in Carmel?" -> place="Carmel"
   - "Dog beaches and parks around South Lake Tahoe" -> place="South Lake Tahoe", types=["beach","park"]
+  - "Anything dog-friendly in Van Nuys?" -> place="Van Nuys"
   - "Anything dog-friendly within 5 miles of here" -> near={lat:36.6, lon:-121.9}, radius_miles=5`,
   inputSchema: z.strictObject({
     ...scopeSchema,
@@ -47,8 +58,7 @@ Examples:
       .boolean()
       .default(true)
       .describe("Leave out places where dogs are not allowed"),
-    per_type: z
-      .number()
+    per_type: num()
       .int()
       .min(1)
       .max(20)
@@ -61,9 +71,19 @@ Examples:
   }),
   outputSchema: z.looseObject({
     ...Envelope,
-    center: z.looseObject({ lat: z.number(), lon: z.number() }),
+    ...OutcomeFields,
+    center: z
+      .looseObject({ lat: z.number(), lon: z.number() })
+      .nullable()
+      .describe("The point searched around; null when the place was not found"),
     label: z.string(),
     radius_miles: z.number(),
+    radius_widened_from: z
+      .number()
+      .optional()
+      .describe(
+        "Set when the radius asked for held nothing and the search widened",
+      ),
     total: z.number(),
     groups: z.array(
       z.looseObject({
@@ -73,16 +93,96 @@ Examples:
         places: z.array(PlaceItem),
       }),
     ),
+    nearest: z.array(PlaceItem).optional(),
   }),
   annotations: READ_ONLY,
   handler: async (args) => {
     const scope = resolveScope(ctx, args);
-    if (scope.error) return scope.error;
+    const format = args.response_format;
+    if (scope.noMatch)
+      return scopeAnswer(ctx, scope.noMatch, {
+        format,
+        shape: {
+          center: null,
+          label: args.place ?? "",
+          radius_miles: args.radius_miles ?? 15,
+          total: 0,
+          groups: [],
+        },
+      });
     const today = ctx.today();
     const wanted = new Set(args.types ?? GROUPS.map(([t]) => t));
-    let found = scope.within(ctx.graph.places);
-    if (args.dogs_allowed_only)
-      found = found.filter((x) => x.place.status !== "no");
+    const keep = (p) =>
+      wanted.has(p.type) && (!args.dogs_allowed_only || p.status !== "no");
+    let radius = scope.radius;
+    let widenedFrom = null;
+    let found = scope.within(ctx.graph.places).filter((x) => keep(x.place));
+    if (!found.length && !scope.isArea) {
+      for (const r of WIDER) {
+        if (r <= radius) continue;
+        const wider = scope
+          .within(ctx.graph.places, r)
+          .filter((x) => keep(x.place));
+        if (wider.length) {
+          widenedFrom = radius;
+          radius = r;
+          found = wider;
+          break;
+        }
+      }
+    }
+    const envelope = ctx.citations.envelope(ctx.graph.as_of);
+    if (!found.length) {
+      // Nothing of the kinds asked for within 100 miles: the nearest records
+      // anyway, with their distance, and the nearest towns that have places.
+      const nearest = nearestTo(ctx.graph, scope.center, 5, keep).map((x) =>
+        summary(x.place, today, { distance_miles: x.distance }),
+      );
+      const towns = nearestTowns(ctx.graph, scope.center);
+      const outside = (nearest[0]?.distance_miles ?? 0) > 150;
+      const message = outside
+        ? `Nothing in the data within 100 miles of ${scope.label}: the nearest record is ${nearest[0].distance_miles} miles away, so this point is outside the data's coverage of California and Nevada.`
+        : `Nothing of the kinds asked for within 100 miles of ${scope.label}${args.types ? " (" + args.types.join(", ") + ")" : ""}.`;
+      const next = [
+        ...(args.types ? ["Call again without types to see every kind"] : []),
+        ...(args.dogs_allowed_only === false
+          ? []
+          : [
+              "dogs_allowed_only=false also lists places that do not allow dogs",
+            ]),
+        ...towns
+          .slice(0, 1)
+          .map(
+            (t) =>
+              `place="${t.name}, ${t.state}" is the nearest town with records (${t.distance_miles} mi)`,
+          ),
+      ];
+      return answer({
+        outcome: "no_match",
+        code: "not_found",
+        message,
+        shape: {
+          ...envelope,
+          center: scope.center,
+          label: scope.label,
+          radius_miles: radius,
+          ...(widenedFrom != null ? { radius_widened_from: widenedFrom } : {}),
+          total: 0,
+          groups: [],
+        },
+        did_you_mean: towns,
+        nearest,
+        next,
+        format,
+        text: noMatchText(ctx, {
+          title: `Nothing within 100 miles of ${scope.label}`,
+          message,
+          did_you_mean: towns,
+          nearest,
+          next,
+        }),
+      });
+    }
     const groups = GROUPS.filter(([t]) => wanted.has(t))
       .map(([type, label]) => {
         const all = found.filter((x) => x.place.type === type);
@@ -100,22 +200,23 @@ Examples:
       .filter((g) => g.total > 0);
     const shown = groups.flatMap((g) => g.places);
     const data = {
-      ...ctx.citations.envelope(ctx.graph.as_of),
+      ...envelope,
       center: scope.center,
       label: scope.label,
-      radius_miles: scope.radius,
+      radius_miles: radius,
+      ...(widenedFrom != null ? { radius_widened_from: widenedFrom } : {}),
       total: found.length,
       groups,
       ...(shown.some((s) => s.osm) ? { attribution: OSM_ATTRIBUTION } : {}),
     };
-    return result(data, args.response_format, () => {
+    return result(data, format, () => {
       const lines = [
-        `# ${found.length} dog-related place${found.length === 1 ? "" : "s"} within ${scope.radius} miles of ${scope.label}`,
+        `# ${found.length} dog-related place${found.length === 1 ? "" : "s"} within ${radius} miles of ${scope.label}`,
       ];
-      if (!groups.length)
+      if (widenedFrom != null)
         lines.push(
           "",
-          "No matching places. Try a larger radius or a nearby larger town.",
+          `Nothing sat within ${widenedFrom} miles, so the search widened to ${radius}.`,
         );
       for (const g of groups) {
         lines.push(

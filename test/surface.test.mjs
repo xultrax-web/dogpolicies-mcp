@@ -141,12 +141,16 @@ test("near: a town name resolves, results group by kind sorted by distance; unkn
     });
     assert.ok(point.structuredContent.groups.every((g) => g.type === "beach"));
     const bad = await call(client, "dogpolicies_near", { place: "Atlantis" });
-    assert.equal(bad.structuredContent.error.code, "not_found");
+    assert.ok(!bad.isError, "an unknown town is an answer");
+    assert.equal(bad.structuredContent.outcome, "no_match");
+    assert.equal(bad.structuredContent.code, "not_found");
     const none = await client.callTool({
       name: "dogpolicies_near",
       arguments: {},
     });
-    assert.equal(none.structuredContent.error.code, "invalid");
+    assert.ok(!none.isError, "no place or point is an answer");
+    assert.equal(none.structuredContent.outcome, "bad_input");
+    assert.equal(none.structuredContent.code, "invalid");
   }));
 
 test("plan_trip: stays with verdicts and fee math, outings grouped, one call", () =>
@@ -216,7 +220,10 @@ test("compare_places: a table with one column per place; bad ids are not_found",
     const bad = await call(client, "dogpolicies_compare_places", {
       ids: ["carmel-beach", "nope"],
     });
-    assert.equal(bad.structuredContent.error.code, "not_found");
+    assert.ok(!bad.isError, "one good id and one bad is an answer");
+    assert.equal(bad.structuredContent.outcome, "no_match");
+    assert.equal(bad.structuredContent.missing[0].id, "nope");
+    assert.equal(bad.structuredContent.places.length, 1);
     const one = await client
       .callTool({
         name: "dogpolicies_compare_places",

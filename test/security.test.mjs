@@ -132,7 +132,13 @@ test("report_correction: source_url must be http(s); other schemes are rejected 
           isError: true,
           structuredContent: { error: { code: "invalid" } },
         }));
-      assert.ok(r.isError, source_url);
+      // refused by the schema, or answered bad_input with nothing filed: either way it never reaches the inbox
+      assert.ok(
+        r.isError ||
+          (r.structuredContent?.status === "not_sent" &&
+            r.structuredContent?.report_id === null),
+        source_url,
+      );
     }
   }));
 

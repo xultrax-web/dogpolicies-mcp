@@ -1,24 +1,38 @@
 import * as z from "zod/v4";
 import { READ_ONLY } from "../../core/server.mjs";
-import { fail } from "../../core/errors.mjs";
 import { quoteBlock } from "../../core/citation.mjs";
 import { isSafeId } from "../../core/safety.mjs";
 import { placeFreshness, ruleWithFreshness } from "../graph.mjs";
 import {
   Envelope,
+  FRESHNESS,
   FactItem,
   NotStated,
   OSM_ATTRIBUTION,
+  OutcomeFields,
   PlaceItem,
   RuleItem,
+  answer,
+  closestPlace,
+  noMatchText,
   pageSchema,
   result,
+  suggestPlaces,
   summary,
 } from "./common.mjs";
 import { I5, axisOf, pairRow, pairLine } from "../i5.mjs";
 
 const PlaceDetail = PlaceItem.extend({
   ...Envelope,
+  ...OutcomeFields,
+  // null only in a no_match answer, where there is no record to be fresh or stale
+  freshness: FRESHNESS.nullable(),
+  resolved_from: z
+    .string()
+    .optional()
+    .describe(
+      "Set when the id or name given was not exact and this record was the one clear match",
+    ),
   facts: z.array(FactItem),
   rule_records: z.array(RuleItem),
   not_stated: NotStated,
@@ -55,7 +69,7 @@ export const getPlace = (ctx) => ({
   cache: true,
   description: `The full record for one place you already know by id: every dog rule with its display text, the rules list, and each source with its URL, publisher, capture date and quote. A place on I-5 in California also carries its axis position (s meters from San Ysidro on the I-5 centerline, Caltrans mile, meters off the road, side of northbound travel, road elevation, strip) and, when it is the dog side of a paired stop, that pair: the exit and the people-stops near it (counted from OpenStreetMap, never named, not verified for restrooms).
 
-Takes a place id, as returned in every search result. Example: id="carmel-beach".`,
+Takes a place id, as returned in every search result; a place's exact name works too, and a near miss resolves to the one clear match (labeled resolved_from). An id nothing matches comes back as an answer with close matches (did_you_mean), not an error. Example: id="carmel-beach".`,
   inputSchema: z.strictObject({
     id: z.string().min(2).max(120).describe('Place id, e.g. "fort-funston"'),
     response_format: pageSchema.response_format,
@@ -63,12 +77,77 @@ Takes a place id, as returned in every search result. Example: id="carmel-beach"
   outputSchema: PlaceDetail,
   annotations: READ_ONLY,
   handler: async ({ id, response_format }) => {
-    const p = isSafeId(id) ? ctx.graph.placeById.get(id) : null;
-    if (!p)
-      return fail(
-        "not_found",
-        `No place with id "${id}". Call dogpolicies_search_places with a name to find the id.`,
-      );
+    // an id, or the place's exact name when an assistant passes the name instead (only when one place has it)
+    const byName = () => {
+      const key = id.trim().toLowerCase();
+      const hits = ctx.graph.places.filter((x) => x.name.toLowerCase() === key);
+      return hits.length === 1 ? hits[0] : null;
+    };
+    let p = (isSafeId(id) ? ctx.graph.placeById.get(id) : null) ?? byName();
+    let resolvedFrom = null;
+    if (!p) {
+      // a misspelled id or a name with a word off: the one clear match, labeled
+      const close = closestPlace(ctx.graph, id);
+      if (close) {
+        p = close;
+        resolvedFrom = id;
+      }
+    }
+    if (!p) {
+      const did_you_mean = suggestPlaces(ctx.graph, id);
+      const message = `No place with id or name "${id}" in the data.`;
+      const next = [
+        ...(did_you_mean.length
+          ? [
+              `Call again with id="${did_you_mean[0].id}" if that is the place meant`,
+            ]
+          : []),
+        `dogpolicies_search_places with query="${id.replace(/-/g, " ").slice(0, 60)}" finds places by name, town or county`,
+        "dogpolicies_near with the town lists everything for dogs around it",
+      ];
+      return answer({
+        outcome: "no_match",
+        code: "not_found",
+        message,
+        shape: {
+          ...ctx.citations.envelope(ctx.graph.as_of),
+          id,
+          uid: "",
+          name: id,
+          type: "unknown",
+          status: "unknown",
+          answer: "No record with this id or name.",
+          citation: "",
+          brand_policy: false,
+          confidence: "unstated",
+          confirmed_by: null,
+          freshness: null,
+          tags: [],
+          verified_at: "",
+          review_due: "",
+          url: `${ctx.graph.site.url}/search/`,
+          markdown_url: "",
+          source_urls: [],
+          record_license: "",
+          facts: [],
+          rule_records: [],
+          not_stated: [],
+          rules: [],
+          sources: [],
+          axis: null,
+          paired_stop: null,
+        },
+        did_you_mean,
+        next,
+        format: response_format,
+        text: noMatchText(ctx, {
+          title: `No place "${id}"`,
+          message,
+          did_you_mean,
+          next,
+        }),
+      });
+    }
     const today = ctx.today();
     const fresh = placeFreshness(p, today);
     const rules = p.rule_records.map((r) => ruleWithFreshness(r, today));
@@ -93,6 +172,7 @@ Takes a place id, as returned in every search result. Example: id="carmel-beach"
       record_license: p.record_license,
       axis: p.axis ?? null,
       paired_stop: pairedStop,
+      ...(resolvedFrom ? { resolved_from: resolvedFrom } : {}),
       ...(p.osm ? { attribution: OSM_ATTRIBUTION } : {}),
     };
     const ruleBy = Object.fromEntries(rules.map((r) => [r.kind, r]));
@@ -100,6 +180,9 @@ Takes a place id, as returned in every search result. Example: id="carmel-beach"
       p.citation,
       "",
       `# ${p.name}`,
+      ...(resolvedFrom
+        ? [`(The closest match to "${resolvedFrom}"; its id is \`${p.id}\`.)`]
+        : []),
       "",
       `**${p.answer}**`,
       "",

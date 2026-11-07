@@ -21,8 +21,10 @@ treated elsewhere, so nothing breaks in a 0.x minor either).
 - Output fields named in each tool's `outputSchema`, and the shape of the
   envelope (`as_of`, `license`, `attribution_text`, `attribution_url`,
   `total`, `count`, `offset`, `has_more`, `next_offset`).
-- Error codes: `not_found`, `invalid`, `rate_limited`, `unavailable`,
-  `offline`, `internal`.
+- Outcomes and codes: an answer's `outcome` (`ok`, `partial`, `no_match`,
+  `bad_input`, `unavailable`) and `code` (`not_found`, `invalid`,
+  `unavailable`); the error codes `internal` and `rate_limited`, the only
+  ones that set `isError` (since 0.4.0).
 - Resource URIs and prompt names.
 - The first line of every markdown result being a citation and the last the
   attribution line.

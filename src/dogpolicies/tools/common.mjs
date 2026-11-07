@@ -5,10 +5,16 @@
 
 import * as z from "zod/v4";
 import { LIMITS } from "../../config.mjs";
+import { answer } from "../../core/errors.mjs";
 import { pageResult, result } from "../../core/result.mjs";
 import { miles } from "../../core/geo.mjs";
 import { placeFreshness } from "../graph.mjs";
 import { STATES, STATE_NAME, cityCounty } from "../stay.mjs";
+
+export { answer };
+
+/** Numbers arrive as strings from some clients: read them as numbers before the bounds apply. */
+const num = () => z.coerce.number();
 
 export const OSM_ATTRIBUTION =
   "Hotel names and locations © OpenStreetMap contributors, available under the Open Database License (ODbL).";
@@ -115,9 +121,44 @@ export const Envelope = {
   attribution_text: z.string(),
   attribution_url: z.string(),
 };
+/**
+ * What an answer found, on every tool's output. Absent or "ok" is a normal
+ * answer. None of the other values is an error: the server worked, and the
+ * fields beside them say what to do next.
+ */
+export const OutcomeFields = {
+  outcome: z
+    .enum(["ok", "partial", "no_match", "bad_input", "unavailable"])
+    .optional()
+    .describe(
+      "Absent or ok: a normal answer. no_match: nothing in the data matches, see did_you_mean, nearest and next. bad_input: the arguments cannot be used as given, see next. partial: some of the ids were found, see missing. unavailable: a live source could not be read. None of these is an error.",
+    ),
+  code: z
+    .string()
+    .optional()
+    .describe("With an outcome other than ok: not_found, invalid, unavailable"),
+  message: z.string().optional().describe("What happened, in a sentence"),
+  did_you_mean: z
+    .array(z.looseObject({}))
+    .optional()
+    .describe(
+      "Close matches to what was asked for: towns, places, slugs or brands, best first",
+    ),
+  nearest: z
+    .array(z.looseObject({}))
+    .optional()
+    .describe(
+      "When nothing is inside the radius: the nearest places in the data, with distance_miles",
+    ),
+  next: z
+    .array(z.string())
+    .optional()
+    .describe("Calls that would answer the question, in words"),
+};
 export const ListOutput = (key, extra = {}) =>
   z.looseObject({
     ...Envelope,
+    ...OutcomeFields,
     total: z.number(),
     count: z.number(),
     offset: z.number(),
@@ -175,18 +216,15 @@ export function locationSchema(graph) {
       ),
     near: z
       .strictObject({
-        lat: z
-          .number()
+        lat: num()
           .min(32)
           .max(42.1)
           .describe("Latitude in California or Nevada"),
-        lon: z
-          .number()
+        lon: num()
           .min(-124.5)
           .max(-114)
           .describe("Longitude in California or Nevada"),
-        radius_miles: z
-          .number()
+        radius_miles: num()
           .min(1)
           .max(200)
           .default(25)
@@ -198,15 +236,13 @@ export function locationSchema(graph) {
 }
 
 export const pageSchema = {
-  limit: z
-    .number()
+  limit: num()
     .int()
     .min(1)
     .max(50)
     .default(10)
     .describe("Maximum results to return"),
-  offset: z
-    .number()
+  offset: num()
     .int()
     .min(0)
     .default(0)
@@ -218,24 +254,16 @@ export const pageSchema = {
 };
 
 export const stayCriteriaSchema = {
-  dog_weight_lb: z
-    .number()
+  dog_weight_lb: num()
     .min(1)
-    .max(250)
+    .max(300)
     .optional()
     .describe("The dog's weight in pounds"),
-  dogs: z.number().int().min(1).max(4).default(1).describe("Number of dogs"),
-  nights: z
-    .number()
-    .int()
-    .min(1)
-    .max(30)
-    .default(1)
-    .describe("Nights of the stay"),
-  max_total_fee: z
-    .number()
+  dogs: num().int().min(1).max(10).default(1).describe("Number of dogs"),
+  nights: num().int().min(1).max(90).default(1).describe("Nights of the stay"),
+  max_total_fee: num()
     .min(0)
-    .max(5000)
+    .max(10_000)
     .optional()
     .describe("Most the guest will pay in pet fees for the whole stay, USD"),
 };
@@ -262,10 +290,10 @@ export function filterByLocation(items, { state, county, region, area, near }) {
   return out.map((p) => ({ place: p, distance: null }));
 }
 
-/** A list response with the shared envelope, footer and character budget. */
+/** A list response with the shared envelope, footer and character budget; `emptyLines` show when the page is empty. */
 export function listResponse(
   ctx,
-  { format, total, offset, items, key, header, extra = {} },
+  { format, total, offset, items, key, header, extra = {}, emptyLines = [] },
 ) {
   const osm = items.some((s) => s.osm);
   return pageResult({
@@ -276,7 +304,10 @@ export function listResponse(
     key,
     header,
     line: summaryLine,
-    footer: ctx.citations.footer(items, { osmLine: OSM_ATTRIBUTION }),
+    footer: [
+      ...(items.length ? [] : emptyLines),
+      ...ctx.citations.footer(items, { osmLine: OSM_ATTRIBUTION }),
+    ],
     extra: { ...extra, ...(osm ? { attribution: OSM_ATTRIBUTION } : {}) },
     envelope: ctx.citations.envelope(ctx.graph.as_of),
     limit: LIMITS.resultCharacters,
@@ -291,7 +322,11 @@ export { result };
  * narrows it. Returns { name, kind, state, county, lat, lon } or null.
  */
 export function resolveTown(graph, text) {
-  const raw = norm(text).replace(/[.,]/g, " ").replace(/\s+/g, " ").trim();
+  // hyphens and underscores read as spaces: "central-valley" is "Central Valley"
+  const raw = norm(text)
+    .replace(/[.,_-]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
   if (!raw) return null;
   let state = null;
   let name = raw;
@@ -313,9 +348,398 @@ export function resolveTown(graph, text) {
     exact("city") ??
     exact("county") ??
     towns.find((t) => t.kind === "area" && t.id === name) ??
+    region(graph, name, state) ??
+    neighborhood(name, state) ??
     starts("area") ??
     starts("city") ??
     starts("county") ??
+    typo(towns, name) ??
     null
   );
 }
+
+/**
+ * A region ("Central Valley", "central-valley", "Central Coast") as a scope of
+ * its member places, like an area: its center is the middle of those places.
+ */
+function region(graph, name, state) {
+  const r = (graph.regions ?? []).find(
+    (x) => norm(x.name) === name || x.id.replace(/-/g, " ") === name,
+  );
+  if (!r) return null;
+  const members = graph.places.filter((p) => p.regionId === r.id && p.geo);
+  if (!members.length) return null;
+  if (state && !members.some((p) => p.state === state)) return null;
+  const lat = members.reduce((s, p) => s + p.geo.lat, 0) / members.length;
+  const lon = members.reduce((s, p) => s + p.geo.lon, 0) / members.length;
+  return {
+    name: r.name,
+    kind: "region",
+    id: r.id,
+    county: null,
+    state: members[0].state,
+    lat: Math.round(lat * 1e4) / 1e4,
+    lon: Math.round(lon * 1e4) / 1e4,
+  };
+}
+
+/** A neighborhood of a city we cover, as a search center (NEIGHBORHOODS). */
+function neighborhood(name, state) {
+  const n = NEIGHBORHOODS.find(
+    (x) => norm(x.name) === name && (!state || x.state === state),
+  );
+  return n ? { ...n, kind: "city" } : null;
+}
+
+/**
+ * A one- or two-letter slip in a town or county name ("Montery", "Sacremento"):
+ * the closest name, marked corrected_from so the answer can say so. Short
+ * words and anything further off are left unmatched.
+ */
+function typo(towns, name) {
+  if (name.length < 5) return null;
+  const limit = name.length < 9 ? 1 : 2;
+  let best = null;
+  for (const t of towns) {
+    if (t.kind !== "city" && t.kind !== "county") continue;
+    const d = editDistance(norm(t.name), name, limit);
+    // closest first; at the same distance a city beats a county ("Montery" is the town)
+    const better =
+      !best ||
+      d < best.d ||
+      (d === best.d && t.kind === "city" && best.t.kind !== "city");
+    if (d <= limit && better) best = { t, d };
+  }
+  return best ? { ...best.t, corrected_from: name } : null;
+}
+
+// ---- No dead ends: what to offer when nothing matches ----
+
+const compact = (s) => norm(s).replace(/[^a-z0-9]+/g, "");
+const tokens = (s) =>
+  norm(s)
+    .replace(/[^a-z0-9]+/g, " ")
+    .split(" ")
+    .filter((w) => w.length >= 3);
+
+/**
+ * Towns, counties, areas, regions and neighborhoods close to what was asked
+ * for: a shared word ("south lake" -> South Lake Tahoe), a prefix, or a
+ * spelling a few letters off. Best first, at most `n`.
+ */
+export function suggestTowns(graph, text, n = 5) {
+  const raw = norm(text)
+    .replace(/[.,_-]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  const asked = raw
+    .replace(/\s+(ca|nv|california|nevada)$/, "")
+    .replace(/\s+county$/, "");
+  if (!asked) return [];
+  const askedTokens = tokens(asked);
+  const limit = Math.max(2, Math.floor(asked.length / 4));
+  const candidates = [
+    ...graph.towns.map((t) => ({
+      name: t.name,
+      kind: t.kind,
+      state: t.state,
+      id: t.id,
+      county: t.county ?? null,
+      places: t.places ?? 0,
+    })),
+    ...(graph.regions ?? []).map((r) => ({
+      name: r.name,
+      kind: "region",
+      state: null,
+      id: r.id,
+      county: null,
+      places: 0,
+    })),
+    ...NEIGHBORHOODS.map((x) => ({
+      name: x.name,
+      kind: "neighborhood",
+      state: x.state,
+      id: null,
+      county: x.county,
+      places: 0,
+    })),
+  ];
+  const scored = [];
+  for (const c of candidates) {
+    const name = norm(c.name);
+    let score = null;
+    if (name === asked) score = 0;
+    else if (name.startsWith(asked) || asked.startsWith(name)) score = 1;
+    else if (
+      askedTokens.length &&
+      tokens(name).some((w) => askedTokens.includes(w))
+    )
+      score = 2;
+    else {
+      const d = editDistance(name, asked, limit);
+      if (d <= limit) score = 2 + d;
+    }
+    if (score !== null) scored.push({ c, score });
+  }
+  scored.sort(
+    (a, b) =>
+      a.score - b.score ||
+      b.c.places - a.c.places ||
+      a.c.name.localeCompare(b.c.name),
+  );
+  const seen = new Set();
+  const out = [];
+  for (const { c } of scored) {
+    const key = `${c.kind}|${c.name}|${c.state}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push({
+      name: c.name,
+      kind: c.kind,
+      ...(c.state ? { state: c.state } : {}),
+      ...(c.county ? { county: c.county } : {}),
+      ...(c.id ? { id: c.id } : {}),
+      ...(c.places ? { places: c.places } : {}),
+    });
+    if (out.length >= n) break;
+  }
+  return out;
+}
+
+/**
+ * Places whose name, town or county shares words with what was asked for, or
+ * whose id is a few letters off: best first, at most `n`. For a model that
+ * passed a name or a misspelled id instead of an id from a search result.
+ */
+export function suggestPlaces(graph, text, n = 5) {
+  const askedTokens = tokens(text);
+  const askedCompact = compact(text);
+  const scored = [];
+  for (const p of graph.places) {
+    const hay = tokens(`${p.name} ${p.city ?? ""} ${p.county ?? ""}`);
+    const nameTokens = tokens(p.name);
+    const hits = askedTokens.filter((w) => hay.includes(w)).length;
+    const nameHits = askedTokens.filter((w) => nameTokens.includes(w)).length;
+    let score = null;
+    if (askedTokens.length && hits === askedTokens.length)
+      score = 0 + (nameHits === askedTokens.length ? 0 : 0.5);
+    else if (nameHits >= 1 && (askedTokens.length <= 2 || nameHits >= 2))
+      score = 2 + (askedTokens.length - nameHits);
+    if (askedCompact.length >= 5) {
+      const limit = Math.max(2, Math.floor(askedCompact.length / 5));
+      const d = Math.min(
+        editDistance(compact(p.id), askedCompact, limit),
+        editDistance(compact(p.name), askedCompact, limit),
+      );
+      if (d <= limit) score = Math.min(score ?? Infinity, 1 + d / 10);
+    }
+    if (score !== null) scored.push({ p, score });
+  }
+  scored.sort((a, b) => a.score - b.score || a.p.name.localeCompare(b.p.name));
+  return scored.slice(0, n).map(({ p, score }) => ({
+    id: p.id,
+    name: p.name,
+    type: p.type,
+    city: p.city ?? null,
+    county: p.county ?? null,
+    state: p.state,
+    url: p.url,
+    ...(score <= 1.3 ? { close_match: true } : {}),
+  }));
+}
+
+/** The one place that is clearly what was meant, or null when it is not clear. */
+export function closestPlace(graph, text) {
+  const [first, second] = suggestPlaces(graph, text, 2);
+  return first?.close_match && !second?.close_match
+    ? graph.placeById.get(first.id)
+    : null;
+}
+
+/** The `n` nearest places to a point, with distance, nearest first. */
+export function nearestTo(graph, center, n = 5, keep = () => true) {
+  const out = [];
+  for (const p of graph.places) {
+    if (!p.geo || !keep(p)) continue;
+    out.push({
+      place: p,
+      distance: Math.round(miles(center, p.geo) * 10) / 10,
+    });
+  }
+  return out.sort((a, b) => a.distance - b.distance).slice(0, n);
+}
+
+/** The `n` towns with places nearest a point, with distance. */
+export function nearestTowns(graph, center, n = 3) {
+  return graph.towns
+    .filter((t) => t.kind === "city" && t.places > 0)
+    .map((t) => ({
+      name: t.name,
+      kind: t.kind,
+      state: t.state,
+      places: t.places,
+      distance_miles: Math.round(miles(center, t) * 10) / 10,
+    }))
+    .sort((a, b) => a.distance_miles - b.distance_miles)
+    .slice(0, n);
+}
+
+const townLine = (t) =>
+  `- ${t.name}${t.state ? `, ${t.state}` : ""} (${t.kind}${t.places ? `, ${t.places} places` : ""}${t.distance_miles != null ? `, ${t.distance_miles} mi` : ""})${t.id && t.kind !== "city" ? ` · id \`${t.id}\`` : ""}`;
+const placeLine = (p) =>
+  `- ${p.name} (\`${p.id}\`, ${p.type}${p.city ? `, ${p.city}` : ""}, ${p.state})${p.close_match ? " · close match" : ""}`;
+
+/** The "Did you mean" and "Try next" lines, for any answer that found nothing. */
+export function suggestionLines({
+  did_you_mean = [],
+  nearest = [],
+  next = [],
+}) {
+  const lines = [];
+  if (did_you_mean.length) {
+    lines.push("", "Did you mean:");
+    lines.push(
+      ...did_you_mean.map((x) =>
+        x.slug
+          ? `- ${x.question} (\`${x.slug}\`)`
+          : x.id && !x.kind
+            ? placeLine(x)
+            : townLine(x),
+      ),
+    );
+  }
+  if (nearest.length) {
+    lines.push("", "Nearest in the data instead:");
+    lines.push(...nearest.map(summaryLine));
+  }
+  if (next.length) {
+    lines.push("", "Try next:");
+    lines.push(...next.map((s) => `- ${s}`));
+  }
+  return lines;
+}
+
+/**
+ * The markdown of an answer that found nothing: what was asked, why there is
+ * no match, the close matches, the nearest records, and what to call next.
+ */
+export function noMatchText(
+  ctx,
+  {
+    title,
+    message,
+    did_you_mean = [],
+    nearest = [],
+    next = [],
+    extraLines = [],
+  },
+) {
+  return [
+    `# ${title}`,
+    "",
+    message,
+    ...suggestionLines({ did_you_mean, nearest, next }),
+    ...extraLines,
+    "",
+    ctx.citations.licenseLine,
+  ].join("\n");
+}
+
+/** Levenshtein distance, stopping early once it passes `limit`. */
+export function editDistance(a, b, limit) {
+  if (Math.abs(a.length - b.length) > limit) return limit + 1;
+  let prev = Array.from({ length: b.length + 1 }, (_, j) => j);
+  for (let i = 1; i <= a.length; i++) {
+    const cur = [i];
+    let low = i;
+    for (let j = 1; j <= b.length; j++) {
+      cur[j] = Math.min(
+        prev[j] + 1,
+        cur[j - 1] + 1,
+        prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1),
+      );
+      low = Math.min(low, cur[j]);
+    }
+    if (low > limit) return limit + 1;
+    prev = cur;
+  }
+  return prev[b.length];
+}
+
+/**
+ * Neighborhoods people search by name that have no places of their own in the
+ * data yet, each inside a city we cover: used only as a search center (the
+ * radius finds the real places around it). Centers are approximate.
+ */
+const NEIGHBORHOODS = [
+  {
+    name: "Van Nuys",
+    county: "Los Angeles",
+    state: "CA",
+    lat: 34.1867,
+    lon: -118.4487,
+  },
+  {
+    name: "North Hollywood",
+    county: "Los Angeles",
+    state: "CA",
+    lat: 34.172,
+    lon: -118.3789,
+  },
+  {
+    name: "Studio City",
+    county: "Los Angeles",
+    state: "CA",
+    lat: 34.1486,
+    lon: -118.3965,
+  },
+  {
+    name: "Sherman Oaks",
+    county: "Los Angeles",
+    state: "CA",
+    lat: 34.1508,
+    lon: -118.449,
+  },
+  {
+    name: "Encino",
+    county: "Los Angeles",
+    state: "CA",
+    lat: 34.1592,
+    lon: -118.5012,
+  },
+  {
+    name: "Northridge",
+    county: "Los Angeles",
+    state: "CA",
+    lat: 34.2283,
+    lon: -118.5368,
+  },
+  {
+    name: "Hollywood",
+    county: "Los Angeles",
+    state: "CA",
+    lat: 34.0928,
+    lon: -118.3287,
+  },
+  {
+    name: "Venice",
+    county: "Los Angeles",
+    state: "CA",
+    lat: 33.985,
+    lon: -118.4695,
+  },
+  {
+    name: "San Pedro",
+    county: "Los Angeles",
+    state: "CA",
+    lat: 33.7361,
+    lon: -118.2923,
+  },
+  {
+    name: "Silver Lake",
+    county: "Los Angeles",
+    state: "CA",
+    lat: 34.0869,
+    lon: -118.2702,
+  },
+];

@@ -8,7 +8,14 @@ import * as z from "zod/v4";
 import { WRITE_ONCE } from "../../core/server.mjs";
 import { fail } from "../../core/errors.mjs";
 import { isSafeId } from "../../core/safety.mjs";
-import { result } from "./common.mjs";
+import {
+  OutcomeFields,
+  answer,
+  closestPlace,
+  noMatchText,
+  result,
+  suggestPlaces,
+} from "./common.mjs";
 
 export const reportCorrection = (ctx) => ({
   name: "dogpolicies_report_correction",
@@ -41,25 +48,69 @@ export const reportCorrection = (ctx) => ({
       .describe("How to reach the reporter, only if they offer it"),
   }),
   outputSchema: z.looseObject({
+    ...OutcomeFields,
     report_id: z.string().nullable(),
     place_id: z.string(),
-    status: z.string(),
+    status: z
+      .string()
+      .describe("filed, or not_sent with form_url to file it by hand"),
     url: z.string(),
+    form_url: z.string().optional(),
   }),
   annotations: WRITE_ONCE,
   handler: async ({ place_id, message, source_url, contact }) => {
-    const p = isSafeId(place_id) ? ctx.graph.placeById.get(place_id) : null;
-    if (!p)
-      return fail(
-        "not_found",
-        `No place with id "${place_id}". Search first to find the id.`,
-      );
-    if (source_url && !/^https?:\/\//.test(source_url))
-      return fail("invalid", "source_url must start with http:// or https://");
+    const p =
+      (isSafeId(place_id) ? ctx.graph.placeById.get(place_id) : null) ??
+      closestPlace(ctx.graph, place_id);
+    if (!p) {
+      const did_you_mean = suggestPlaces(ctx.graph, place_id);
+      const why = `No place with id "${place_id}" in the data, so nothing was filed.`;
+      const next = [
+        ...(did_you_mean[0]
+          ? [`place_id="${did_you_mean[0].id}" if that is the record meant`]
+          : []),
+        "dogpolicies_search_places finds the record and its id; then file again",
+      ];
+      return answer({
+        outcome: "bad_input",
+        code: "not_found",
+        message: why,
+        shape: {
+          report_id: null,
+          place_id,
+          status: "not_sent",
+          url: `${ctx.graph.site.url}/search/`,
+        },
+        did_you_mean,
+        next,
+        text: noMatchText(ctx, {
+          title: "Correction not filed",
+          message: why,
+          did_you_mean,
+          next,
+        }),
+      });
+    }
     const formUrl = `${p.url}#correction`;
+    if (source_url && !/^https?:\/\//.test(source_url))
+      return answer({
+        outcome: "bad_input",
+        code: "invalid",
+        message: `source_url must start with http:// or https://; nothing was filed. Leave it out, or file on the record's page: ${formUrl}`,
+        shape: {
+          report_id: null,
+          place_id: p.id,
+          status: "not_sent",
+          url: p.url,
+          form_url: formUrl,
+        },
+        next: [
+          "Call again without source_url, or with the official page's full address",
+        ],
+      });
     const manual = {
       report_id: null,
-      place_id,
+      place_id: p.id,
       status: "not_sent",
       url: p.url,
       form_url: formUrl,
@@ -77,20 +128,26 @@ export const reportCorrection = (ctx) => ({
         "Too many reports from this client in a minute; wait a minute and try again.",
       );
     const sent = await ctx.report.send({
-      placeId: place_id,
+      placeId: p.id,
       message,
       sourceUrl: source_url,
       contact,
     });
     if (!sent.ok)
-      return fail(
-        "unavailable",
-        `The corrections inbox could not be reached (${sent.reason}). File it on the record's page instead: ${formUrl}`,
-        { form_url: formUrl, place_id },
-      );
+      // The inbox is down, not the request: the form takes the same report.
+      return answer({
+        outcome: "unavailable",
+        code: "unavailable",
+        message: `The corrections inbox could not be reached (${sent.reason}), so the report was not filed. File it on the record's page instead: ${formUrl}`,
+        shape: { ...manual },
+        next: [
+          `Open ${formUrl} and paste the same message`,
+          "Or call again in a few minutes",
+        ],
+      });
     const data = {
       report_id: sent.id,
-      place_id,
+      place_id: p.id,
       status: "filed",
       url: p.url,
       note: "A person re-verifies against the official source, usually within a week. The record's verification history shows the result.",
@@ -99,7 +156,7 @@ export const reportCorrection = (ctx) => ({
       data,
       "markdown",
       () =>
-        `Filed correction ${sent.id} for ${place_id}. A person re-verifies it against the official source, usually within a week; the record (${p.url}) does not change until then.`,
+        `Filed correction ${sent.id} for ${p.id}. A person re-verifies it against the official source, usually within a week; the record (${p.url}) does not change until then.`,
     );
   },
 });

@@ -10,6 +10,75 @@ The data inside the package has its own date (`as_of` in every result). A
 new package version ships a new snapshot; the server also refreshes from the
 site on its own when the network allows.
 
+## 0.4.0 - 2026-11-07
+
+Answers, not errors. A question the data cannot answer now comes back as a
+normal answer that says so and helps, never as a dead end, and `isError` is
+reserved for the server itself failing. Directories that score a server by
+its `isError` rate (Claude's does) had been counting "Van Nuys is not a town
+we cover" against us; what they count now is what a person would call an
+error.
+
+Changed
+
+- `not_found`, `invalid`, `unavailable` and `offline` results are no longer
+  `isError`. They are answers with `outcome` (`no_match`, `bad_input`,
+  `partial` or `unavailable`), `code`, `message`, and whichever of
+  `did_you_mean` (close matches: towns, places, slugs, brands), `nearest` (the
+  nearest records anyway, with distance), `missing` and `next` (what to call)
+  apply. Every such answer still satisfies the tool's output schema: list
+  fields are empty, counts are zero, and a field with nothing honest to hold
+  is `null` (`near.center`, `get_rule.rule` and `.place`,
+  `i5_conditions.fetched_at`, `get_place.freshness` in a no-match answer).
+  A client that branched on `isError` for these codes should read `outcome`.
+  `isError` remains for `internal` and `rate_limited`.
+- `dogpolicies_near` widens its radius on its own (30, 60, then 100 miles,
+  reported as `radius_widened_from`) when nothing sits inside the one asked
+  for, and when the data has nothing within 100 miles it lists the five
+  nearest records and the nearest towns with records.
+- `dogpolicies_get_place` and `dogpolicies_compare_places` resolve a near
+  miss (a misspelled id, a name a word off) to the one clear match, labeled
+  `resolved_from`; `compare_places` compares what it found and lists the
+  rest under `missing` (`outcome: partial`).
+- `dogpolicies_get_rule` with a rule id whose place exists but has no such
+  rule answers with that place and its recorded rule ids.
+- `dogpolicies_browse_answers` with an unknown slug answers with the closest
+  slugs and the whole list; `dogpolicies_get_brand_policy` with an unknown
+  brand lists the covered brands nearest in spelling and how to check that
+  chain's hotels one by one.
+- `dogpolicies_report_correction` with an unknown place answers
+  `bad_input` with close matches and files nothing; an unreachable inbox is
+  `unavailable` with the form's address.
+- `dogpolicies_i5_conditions` reads the conditions document in-process on
+  the hosted server (it had been answering `offline` there since 0.3.0), marks
+  a reading older than two hours `stale`, and when no document can be read
+  answers `unavailable` with the live page's address. A point too far from
+  I-5 (also in `dogpolicies_i5_corridor`) answers `bad_input` with
+  `nearest_i5`: the nearest mile and how far it is.
+- Numeric inputs accept numbers written as strings; `dogs` up to 10, `nights`
+  up to 90, `dog_weight_lb` up to 300, `max_total_fee` up to 10,000.
+- The server instructions tell the model there are no dead ends and how to
+  use `outcome`, `did_you_mean`, `nearest` and `next`.
+
+Fixed
+
+- On I-5, `dogpolicies_route_stops`, `dogpolicies_i5_corridor` and the
+  drive leg of `dogpolicies_plan_trip` left out every park, hotel, campground
+  and patio on the far bank of the freeway: 195 of 422 stops northbound, 199
+  southbound (since 0.3.0). The geometric side of the road is now wording
+  only; a stop is one-way only when Caltrans lists it for one direction (a
+  rest area).
+- The site's in-process server (`npm run preview`, stdio) now carries the
+  I-5 axis like the hosted Worker, so the three servers answer alike.
+
+Added
+
+- Output fields on every tool: `outcome`, `code`, `message`, `did_you_mean`,
+  `nearest`, `next` (all optional); `near.radius_widened_from` and `.nearest`;
+  `get_place.resolved_from`; `compare_places.missing`;
+  `i5_conditions.stale` and `.nearest_i5`; `i5_corridor.nearest_i5`;
+  `report_correction.form_url`.
+
 ## 0.3.0 - 2026-11-04
 
 The I-5 axis: every I-5 stop in California carries its position on the I-5

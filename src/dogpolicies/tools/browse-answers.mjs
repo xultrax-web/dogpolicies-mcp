@@ -1,10 +1,13 @@
 import * as z from "zod/v4";
 import { READ_ONLY } from "../../core/server.mjs";
-import { fail } from "../../core/errors.mjs";
 import {
   Envelope,
+  OutcomeFields,
   PlaceItem,
+  answer,
+  editDistance,
   listResponse,
+  noMatchText,
   pageSchema,
   result,
   summary,
@@ -12,6 +15,7 @@ import {
 
 const AnswersOutput = z.looseObject({
   ...Envelope,
+  ...OutcomeFields,
   total: z.number(),
   questions: z
     .array(
@@ -70,11 +74,63 @@ Without a slug, lists every question with its slug and result count. With a slug
       );
     }
     const a = ctx.graph.answerBySlug.get(slug);
-    if (!a)
-      return fail(
-        "not_found",
-        `Unknown slug "${slug}". Call dogpolicies_browse_answers without a slug to list them.`,
-      );
+    if (!a) {
+      // The questions that share words with the slug, then the whole list, so
+      // the next call can be the right one.
+      const asked = slug
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, " ")
+        .trim();
+      const words = asked.split(" ").filter((w) => w.length >= 3);
+      const list = ctx.graph.answers.map((q) => ({
+        slug: q.slug,
+        question: q.question,
+        results: q.place_ids.length,
+        url: `${site}/answers/${q.slug}/`,
+      }));
+      const did_you_mean = list
+        .map((q) => {
+          const hay = `${q.slug.replace(/-/g, " ")} ${q.question.toLowerCase()}`;
+          const hits = words.filter((w) => hay.includes(w)).length;
+          const d = editDistance(q.slug, slug.toLowerCase(), 6);
+          return { q, score: hits ? -hits : d <= 6 ? 10 + d : null };
+        })
+        .filter((x) => x.score !== null)
+        .sort((x, y) => x.score - y.score)
+        .slice(0, 5)
+        .map((x) => x.q);
+      const message = `No answered question has the slug "${slug}".`;
+      const next = [
+        ...(did_you_mean[0]
+          ? [`slug="${did_you_mean[0].slug}" is the closest`]
+          : []),
+        "Every question is listed below; call again with one of their slugs",
+      ];
+      return answer({
+        outcome: "no_match",
+        code: "not_found",
+        message,
+        shape: {
+          ...ctx.citations.envelope(ctx.graph.as_of),
+          total: list.length,
+          questions: list,
+        },
+        did_you_mean,
+        next,
+        format: response_format,
+        text: noMatchText(ctx, {
+          title: `No question "${slug}"`,
+          message,
+          did_you_mean,
+          next,
+          extraLines: [
+            "",
+            `All ${list.length} questions:`,
+            ...list.map((q) => `- ${q.question} (${q.results}) \`${q.slug}\``),
+          ],
+        }),
+      });
+    }
     const today = ctx.today();
     const places = a.place_ids
       .map((id) => ctx.graph.placeById.get(id))

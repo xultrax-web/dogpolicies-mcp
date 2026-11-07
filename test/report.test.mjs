@@ -134,7 +134,11 @@ test("report_correction tool online: filed, then rate_limited, then unavailable 
       place_id: "carmel-beach",
       message: "The leash rule changed again.",
     });
-    assert.equal(down.structuredContent.error.code, "unavailable");
+    // the inbox being down is not this server's error: an answer with the form's address
+    assert.ok(!down.isError);
+    assert.equal(down.structuredContent.outcome, "unavailable");
+    assert.equal(down.structuredContent.status, "not_sent");
+    assert.match(down.structuredContent.form_url, /#correction$/);
     assert.match(text(down), /#correction/);
     for (let i = 0; i < 3; i++)
       await call(client, "dogpolicies_report_correction", {

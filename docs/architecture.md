@@ -79,7 +79,10 @@ The core wraps each handler: the SDK validates input against the zod schema
 before the handler runs; a cached result is served when the data version and
 arguments match; a thrown `ToolError` becomes `{ isError, code }`; any other
 exception becomes `internal` with no stack in the result; the call is timed
-to the debug log. Resources (`{ uri | template, read }`) and prompts
+to the debug log. A tool that finds nothing does not throw: it returns an
+`answer()` (`core/errors.mjs`) whose `outcome` says what happened and whose
+shape satisfies the tool's output schema, so the SDK's output validation
+still runs on it and no directory counts it as an error. Resources (`{ uri | template, read }`) and prompts
 (`{ argsSchema, build }`) are registered the same way, with cache hints on
 the list methods and resource reads so 2026-07-28 clients can cache them.
 

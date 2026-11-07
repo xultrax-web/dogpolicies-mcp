@@ -8,12 +8,15 @@ import { feeArithmetic, forMatcher } from "./find-hotels.mjs";
 import {
   Envelope,
   OSM_ATTRIBUTION,
+  OutcomeFields,
   PlaceItem,
+  nearestTowns,
   stayCriteriaSchema,
+  suggestionLines,
   summary,
   summaryLine,
 } from "./common.mjs";
-import { resolveScope, scopeSchema } from "./scope.mjs";
+import { resolveScope, scopeAnswer, scopeSchema } from "./scope.mjs";
 import {
   I5,
   MILE_M,
@@ -63,7 +66,7 @@ Examples:
       .boolean()
       .default(true)
       .describe("Include stays that need a call to confirm"),
-    per_section: z
+    per_section: z.coerce
       .number()
       .int()
       .min(1)
@@ -77,6 +80,7 @@ Examples:
   }),
   outputSchema: z.looseObject({
     ...Envelope,
+    ...OutcomeFields,
     label: z.string(),
     radius_miles: z.number(),
     asked: z.looseObject({ dogs: z.number(), nights: z.number() }),
@@ -105,9 +109,26 @@ Examples:
   annotations: READ_ONLY,
   handler: async (args) => {
     const scope = resolveScope(ctx, args);
-    if (scope.error) return scope.error;
-    const today = ctx.today();
     const { dog_weight_lb, dogs, nights, max_total_fee } = args;
+    if (scope.noMatch)
+      return scopeAnswer(ctx, scope.noMatch, {
+        format: args.response_format,
+        shape: {
+          label: args.place ?? "",
+          radius_miles: args.radius_miles ?? 15,
+          asked: {
+            dog_weight_lb: dog_weight_lb ?? null,
+            dogs,
+            nights,
+            max_total_fee: max_total_fee ?? null,
+          },
+          stays: [],
+          stay_counts: { match: 0, possible: 0, excluded: 0 },
+          outings: [],
+          i5: null,
+        },
+      });
+    const today = ctx.today();
     const criteria = {
       weightLb: dog_weight_lb,
       dogs,
@@ -205,6 +226,26 @@ Examples:
       `${nights} night${nights > 1 ? "s" : ""}`,
       max_total_fee != null && `pet fees up to $${max_total_fee}`,
     ].filter(Boolean);
+    // Nothing to stay at and nothing to do: say so, and name the nearest towns
+    // that have records, so the trip can move rather than stop.
+    const empty = !stays.length && !outings.length;
+    const nearby = empty ? nearestTowns(ctx.graph, scope.center) : [];
+    const emptyNext = empty
+      ? [
+          ...(counts.excluded
+            ? [
+                `${counts.excluded} stay${counts.excluded === 1 ? "" : "s"} nearby did not fit the dog or the budget: drop max_total_fee or dog_weight_lb to see them`,
+              ]
+            : []),
+          `Widen radius_miles (now ${scope.radius})`,
+          ...nearby
+            .slice(0, 1)
+            .map(
+              (t) =>
+                `place="${t.name}, ${t.state}" is the nearest town with records (${t.distance_miles} mi)`,
+            ),
+        ]
+      : [];
     const data = {
       ...ctx.citations.envelope(ctx.graph.as_of),
       label: scope.label,
@@ -220,6 +261,15 @@ Examples:
       stay_counts: counts,
       outings,
       i5,
+      ...(empty
+        ? {
+            outcome: "no_match",
+            code: "not_found",
+            message: `No stays or outings in the data within ${scope.radius} miles of ${scope.label} that fit what was asked.`,
+            did_you_mean: nearby,
+            next: emptyNext,
+          }
+        : {}),
       ...(shown.some((s) => s.osm) ? { attribution: OSM_ATTRIBUTION } : {}),
     };
     return result(data, args.response_format, () => {
@@ -244,6 +294,10 @@ Examples:
         lines.push(
           "",
           "No beaches, parks, trails or patios with dog rules in the data near here yet.",
+        );
+      if (empty)
+        lines.push(
+          ...suggestionLines({ did_you_mean: nearby, next: emptyNext }),
         );
       if (i5) {
         const stopLine = (s) =>

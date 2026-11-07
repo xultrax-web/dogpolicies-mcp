@@ -25,6 +25,14 @@ async function viaTool(ctx, name, args) {
   return r;
 }
 
+/** A resource exists only when the tool found the record: a no-match answer is "not found" here. */
+const found = (r) =>
+  r.isError ||
+  r.structuredContent?.outcome === "no_match" ||
+  r.structuredContent?.outcome === "bad_input"
+    ? null
+    : { text: r.content[0].text };
+
 const rank = (candidates, value) => {
   const v = (value ?? "").toLowerCase();
   return candidates.filter((c) => c.toLowerCase().includes(v)).slice(0, 50);
@@ -131,7 +139,7 @@ export const resources = (ctx) => [
     cacheHint: { ttlMs: 3_600_000, cacheScope: "public" },
     read: async ({ id }) => {
       const r = await viaTool(ctx, "dogpolicies_get_place", { id: String(id) });
-      return r.isError ? null : { text: r.content[0].text };
+      return found(r);
     },
   },
   {
@@ -155,7 +163,7 @@ export const resources = (ctx) => [
       const r = await viaTool(ctx, "dogpolicies_get_brand_policy", {
         brand: String(id),
       });
-      return r.isError ? null : { text: r.content[0].text };
+      return found(r);
     },
   },
   {
@@ -179,7 +187,7 @@ export const resources = (ctx) => [
         slug: String(slug),
         limit: 50,
       });
-      return r.isError ? null : { text: r.content[0].text };
+      return found(r);
     },
   },
   {
@@ -204,7 +212,7 @@ export const resources = (ctx) => [
         route: String(id),
         limit: 50,
       });
-      return r.isError ? null : { text: r.content[0].text };
+      return found(r);
     },
   },
   {
@@ -279,7 +287,7 @@ export const resources = (ctx) => [
         place: area.name,
         per_type: 20,
       });
-      return r.isError ? null : { text: r.content[0].text };
+      return found(r);
     },
   },
 ];

@@ -1,20 +1,27 @@
 import * as z from "zod/v4";
 import { READ_ONLY } from "../../core/server.mjs";
-import { fail } from "../../core/errors.mjs";
 import { result } from "../../core/result.mjs";
 import { LIMITS } from "../../config.mjs";
-import { Envelope } from "./common.mjs";
+import { Envelope, OutcomeFields, answer } from "./common.mjs";
 import { I5, MILE_M, axisOf, calibrationOf, positionOf } from "../i5.mjs";
 
 export const CONDITIONS_PATH = "/api/v1/conditions/i-5.json";
+// A document older than this is served with stale: true and a note; the loop
+// rebuilds it every 15 minutes, so two hours means the feeds or the loop are down.
+export const STALE_MINUTES = 120;
+const num = () => z.coerce.number();
 
 /**
- * The conditions tool reads the site's conditions document (built by the
- * Worker's 15-minute loop from Caltrans' feeds) and returns the items in a
- * window on the axis. It needs the network; offline it says so.
+ * The conditions tool reads the I-5 conditions document (built by the site's
+ * 15-minute loop from Caltrans' feeds) and returns the items in a window on
+ * the axis. The hosted server reads it in-process (ctx.conditions); the npm
+ * package reads it from the site over the network. When neither can, the
+ * answer says so (outcome unavailable) and points at the live page: that is
+ * not an error of this server.
  */
 export const i5Conditions = (ctx) => {
   const route = ctx.graph.routes[I5];
+  const livePage = () => `${ctx.graph.site.url}/road-trips/i-5/`;
   return {
     name: "dogpolicies_i5_conditions",
     title: "I-5 conditions now",
@@ -22,28 +29,22 @@ export const i5Conditions = (ctx) => {
     cache: false,
     description: `Current Caltrans lane closures, road-weather station readings, changeable-message-sign text and chain-control status on I-5 in California, each placed on the I-5 centerline (s meters from San Ysidro and the Caltrans mile) and matched to the nearest DogPolicies dog stop. Conditions come from Caltrans' CWWP2 feeds fetched within the last 15 minutes (fetched_at in the result) and are not verified rules.
 
-The window is a mile range (from_mile, to_mile) or a point with a direction and ahead_miles; with none, the whole of I-5 in California. Needs the network (the document is read from dogpolicies.com); offline the result is an error with code offline.
+The window is a mile range (from_mile, to_mile) or a point with a direction and ahead_miles; with none, the whole of I-5 in California. When the document cannot be read (no network, feeds down), the answer has outcome unavailable and the live page's address; a document older than two hours is marked stale.
 
 Examples:
   - "Is there a closure or chains on the Grapevine right now?" -> from_mile=170, to_mile=222
   - "Weather and closures in the next 60 miles northbound from Redding" -> near={lat:40.59, lon:-122.39}, direction="north", ahead_miles=60`,
     inputSchema: z.strictObject({
-      from_mile: z
-        .number()
+      from_mile: num()
         .min(0)
         .max(800)
         .optional()
         .describe("Start of a mile range"),
-      to_mile: z
-        .number()
-        .min(0)
-        .max(800)
-        .optional()
-        .describe("End of a mile range"),
+      to_mile: num().min(0).max(800).optional().describe("End of a mile range"),
       near: z
         .strictObject({
-          lat: z.number().min(32).max(42.1).describe("Latitude"),
-          lon: z.number().min(-124.5).max(-114).describe("Longitude"),
+          lat: num().min(32).max(42.1).describe("Latitude"),
+          lon: num().min(-124.5).max(-114).describe("Longitude"),
         })
         .optional()
         .describe("A point on or near I-5"),
@@ -51,8 +52,7 @@ Examples:
         .enum(["north", "south"])
         .default("north")
         .describe("Direction of travel from near"),
-      ahead_miles: z
-        .number()
+      ahead_miles: num()
         .min(1)
         .max(800)
         .default(50)
@@ -64,7 +64,17 @@ Examples:
     }),
     outputSchema: z.looseObject({
       ...Envelope,
-      fetched_at: z.string(),
+      ...OutcomeFields,
+      fetched_at: z
+        .string()
+        .nullable()
+        .describe(
+          "When the loop fetched the feeds; null when no document could be read",
+        ),
+      stale: z
+        .boolean()
+        .optional()
+        .describe("True when the document is older than two hours"),
       notice: z.string(),
       window: z.looseObject({}).nullable(),
       chains_in_effect: z.boolean(),
@@ -73,16 +83,46 @@ Examples:
       signs: z.array(z.looseObject({})),
       chain_controls: z.array(z.looseObject({})),
       source: z.looseObject({}),
+      nearest_i5: z
+        .looseObject({})
+        .optional()
+        .describe(
+          "With a point too far from I-5: the nearest point on I-5 and how far it is",
+        ),
     }),
     annotations: READ_ONLY,
     handler: async (args) => {
+      const format = args.response_format;
+      const envelope = ctx.citations.envelope(ctx.graph.as_of);
+      const empty = (window = null) => ({
+        ...envelope,
+        fetched_at: null,
+        notice: "",
+        window,
+        chains_in_effect: false,
+        closures: [],
+        weather: [],
+        signs: [],
+        chain_controls: [],
+        source: {},
+      });
+      const unavailable = (why, next = []) =>
+        answer({
+          outcome: "unavailable",
+          code: "unavailable",
+          message: `${why} The live view, with the same feeds, is ${livePage()}.`,
+          shape: { ...empty(), notice: why },
+          next: [
+            `Send the user to ${livePage()} for live closures, weather and chain controls`,
+            "Call again in a few minutes",
+            ...next,
+          ],
+          format,
+        });
       const axis = axisOf(route);
       if (!axis)
-        return fail("unavailable", "This data snapshot carries no I-5 axis.");
-      if (!ctx.config.network)
-        return fail(
-          "offline",
-          "Conditions need the network: the server is offline (DOGPOLICIES_OFFLINE=1 or no base URL), so no conditions can be read.",
+        return unavailable(
+          "This data snapshot carries no I-5 axis, so conditions cannot be placed on it.",
         );
       const cal = calibrationOf(axis);
       let window = null;
@@ -97,11 +137,40 @@ Examples:
         };
       } else if (args.near) {
         const pos = positionOf(route, args.near);
-        if (!pos)
-          return fail(
-            "invalid",
-            "The point is more than 25 miles from I-5 in California.",
-          );
+        if (!pos) {
+          // Too far from the road: say how far and where the nearest stretch is.
+          const far = positionOf(route, args.near, { maxOffMiles: 2000 });
+          const message = far
+            ? `The point is ${far.off_miles} miles from I-5 in California (nearest at mile ${far.mile}); conditions are read within 25 miles of the road.`
+            : "The point is not near I-5 in California.";
+          return answer({
+            outcome: "bad_input",
+            code: "invalid",
+            message,
+            shape: {
+              ...empty(),
+              notice: message,
+              ...(far
+                ? {
+                    nearest_i5: {
+                      mile: far.mile,
+                      s: far.s,
+                      miles_away: far.off_miles,
+                    },
+                  }
+                : {}),
+            },
+            next: [
+              ...(far
+                ? [
+                    `from_mile=${Math.max(0, Math.round(far.mile - 25))}, to_mile=${Math.round(far.mile + 25)} reads the stretch nearest the point`,
+                  ]
+                : []),
+              "Leave near out to read all of I-5 in California",
+            ],
+            format,
+          });
+        }
         const end =
           args.direction === "north"
             ? pos.s + args.ahead_miles * MILE_M
@@ -116,27 +185,43 @@ Examples:
         window.from_mile = Math.round(cal.sToMile(window.lo_s) * 10) / 10;
         window.to_mile = Math.round(cal.sToMile(window.hi_s) * 10) / 10;
       }
-      let doc;
+      // The document: in-process on the hosted server, over the network for the package.
+      const load =
+        ctx.conditions ??
+        (ctx.config.network
+          ? async () => {
+              const res = await ctx.config.fetch(
+                `${ctx.config.baseUrl}${CONDITIONS_PATH}`,
+                {
+                  headers: { Accept: "application/json" },
+                  signal: AbortSignal.timeout(LIMITS.fetchTimeoutMs ?? 10_000),
+                },
+              );
+              if (!res.ok)
+                throw new Error(
+                  `the conditions document answered HTTP ${res.status}`,
+                );
+              const doc = await res.json();
+              return doc?.error ? null : doc;
+            }
+          : null);
+      if (!load)
+        return unavailable(
+          "This server runs without network access, so live conditions cannot be read here.",
+        );
+      let doc = null;
+      let why = null;
       try {
-        const res = await ctx.config.fetch(
-          `${ctx.config.baseUrl}${CONDITIONS_PATH}`,
-          {
-            headers: { Accept: "application/json" },
-            signal: AbortSignal.timeout(LIMITS.fetchTimeoutMs ?? 10_000),
-          },
-        );
-        if (!res.ok)
-          return fail(
-            "unavailable",
-            `The conditions document answered HTTP ${res.status}; it is rebuilt every 15 minutes.`,
-          );
-        doc = await res.json();
+        doc = await load();
+        if (!doc)
+          why =
+            "No conditions document is available yet: the loop that reads Caltrans' feeds has not produced one.";
       } catch (e) {
-        return fail(
-          "unavailable",
-          `The conditions document could not be read: ${e.message}`,
-        );
+        why = `The conditions document could not be read (${e.message}).`;
       }
+      if (!doc) return unavailable(why);
+      const ageMin = (Date.now() - Date.parse(doc.fetchedAt)) / 60_000;
+      const stale = Number.isFinite(ageMin) && ageMin > STALE_MINUTES;
       const inWindow = (s) => !window || (s >= window.lo_s && s <= window.hi_s);
       const closures = (doc.closures ?? []).filter(
         (c) => !window || (c.sEnd >= window.lo_s && c.sBegin <= window.hi_s),
@@ -146,10 +231,14 @@ Examples:
       const chainControls = (doc.chainControls ?? []).filter((x) =>
         inWindow(x.s),
       );
+      const staleNote = stale
+        ? ` This reading is ${Math.round(ageMin / 60)} hours old: the feeds or the loop have been down since, so treat it as history and check ${livePage()}.`
+        : "";
       const data = {
-        ...ctx.citations.envelope(ctx.graph.as_of),
+        ...envelope,
         fetched_at: doc.fetchedAt,
-        notice: doc.notice,
+        ...(stale ? { stale: true } : {}),
+        notice: `${doc.notice ?? ""}${staleNote}`.trim(),
         window,
         chains_in_effect:
           chainControls.some((c) => c.inEffect) || signs.some((s) => s.chains),
@@ -157,9 +246,9 @@ Examples:
         weather,
         signs,
         chain_controls: chainControls,
-        source: doc.source,
+        source: doc.source ?? {},
       };
-      return result(data, args.response_format, () => {
+      return result(data, format, () => {
         const where = window
           ? `miles ${window.from_mile}–${window.to_mile}`
           : "all of I-5 in California";
@@ -169,9 +258,9 @@ Examples:
               " UTC"
             : null;
         const lines = [
-          `# I-5 conditions, ${where}: ${closures.length} closures, ${weather.length} weather stations, ${signs.length} signs with a message, ${chainControls.length} chain-control points${data.chains_in_effect ? "; CHAIN CONTROLS IN EFFECT" : ""}`,
+          `# I-5 conditions, ${where}: ${closures.length} closures, ${weather.length} weather stations, ${signs.length} signs with a message, ${chainControls.length} chain-control points${data.chains_in_effect ? "; CHAIN CONTROLS IN EFFECT" : ""}${stale ? " (STALE READING)" : ""}`,
           "",
-          `Fetched ${doc.fetchedAt} from Caltrans' CWWP2 feeds. ${doc.notice}`,
+          `Fetched ${doc.fetchedAt} from Caltrans' CWWP2 feeds. ${data.notice}`,
           "",
           "## Closures",
           ...(closures.length
@@ -205,7 +294,7 @@ Examples:
               )
             : ["- No chain-control point in the window."]),
           "",
-          `Source: ${doc.source?.publisher ?? "Caltrans"}, ${doc.source?.portal ?? ""}. Conditions of use read ${doc.source?.terms?.checked ?? "?"}.`,
+          `Source: ${doc.source?.publisher ?? "Caltrans"}, ${doc.source?.portal ?? ""}. Conditions of use read ${doc.source?.terms?.checked ?? "?"}. Live page: ${livePage()}`,
           ctx.citations.line(ctx.graph.as_of),
         ];
         const text = lines.join("\n");

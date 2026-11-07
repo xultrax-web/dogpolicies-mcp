@@ -1,8 +1,8 @@
 import * as z from "zod/v4";
 import { READ_ONLY } from "../../core/server.mjs";
 import { result } from "../../core/result.mjs";
-import { Envelope, pageSchema } from "./common.mjs";
-import { resolveScope, scopeSchema } from "./scope.mjs";
+import { Envelope, OutcomeFields, pageSchema } from "./common.mjs";
+import { resolveScope, scopeAnswer, scopeSchema } from "./scope.mjs";
 
 export const changesNear = (ctx) => ({
   name: "dogpolicies_changes_near",
@@ -28,6 +28,7 @@ Example: "What changed near Monterey since September?" -> place="Monterey", sinc
   }),
   outputSchema: z.looseObject({
     ...Envelope,
+    ...OutcomeFields,
     label: z.string(),
     radius_miles: z.number(),
     total: z.number(),
@@ -45,7 +46,20 @@ Example: "What changed near Monterey since September?" -> place="Monterey", sinc
   annotations: READ_ONLY,
   handler: async (args) => {
     const scope = resolveScope(ctx, args);
-    if (scope.error) return scope.error;
+    if (scope.noMatch)
+      return scopeAnswer(ctx, scope.noMatch, {
+        format: args.response_format,
+        shape: {
+          label: args.place ?? "",
+          radius_miles: args.radius_miles ?? 15,
+          since: args.since,
+          total: 0,
+          count: 0,
+          offset: args.offset,
+          has_more: false,
+          events: [],
+        },
+      });
     const nearby = new Map(
       scope.within(ctx.graph.places).map((x) => [x.place.id, x.distance]),
     );

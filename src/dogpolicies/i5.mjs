@@ -18,9 +18,13 @@ export function calibrationOf(axis) {
   const ss = axis.calibration.map((r) => r[1]);
   const n = miles.length;
   const interp = (xs, ys, x) => {
-    if (x <= xs[0]) return ys[0] + ((x - xs[0]) * (ys[1] - ys[0])) / (xs[1] - xs[0]);
+    if (x <= xs[0])
+      return ys[0] + ((x - xs[0]) * (ys[1] - ys[0])) / (xs[1] - xs[0]);
     if (x >= xs[n - 1])
-      return ys[n - 1] + ((x - xs[n - 1]) * (ys[n - 1] - ys[n - 2])) / (xs[n - 1] - xs[n - 2]);
+      return (
+        ys[n - 1] +
+        ((x - xs[n - 1]) * (ys[n - 1] - ys[n - 2])) / (xs[n - 1] - xs[n - 2])
+      );
     let lo = 0;
     let hi = n - 1;
     while (hi - lo > 1) {
@@ -89,7 +93,11 @@ export function hoursOf(p) {
   const row = (p.rows ?? []).find((r) => r.key === "hours");
   if (!row) return null;
   const src = (p.sources ?? [])[row.source - 1];
-  return { text: row.value, source_url: src?.url ?? null, checked: src?.checked ?? null };
+  return {
+    text: row.value,
+    source_url: src?.url ?? null,
+    checked: src?.checked ?? null,
+  };
 }
 
 /**
@@ -103,7 +111,8 @@ export function axisFields(stop, { startS = null, ahead = true } = {}) {
     s_m: stop.s_m ?? null,
     miles_ahead:
       stop.s_m != null && startS != null
-        ? Math.round((((ahead ? 1 : -1) * (stop.s_m - startS)) / MILE_M) * 10) / 10
+        ? Math.round((((ahead ? 1 : -1) * (stop.s_m - startS)) / MILE_M) * 10) /
+          10
         : null,
     side: stop.axis_side ?? null,
     off_miles: stop.off_miles ?? null,
@@ -119,11 +128,17 @@ export function axisFields(stop, { startS = null, ahead = true } = {}) {
   return out;
 }
 
-/** True when the stop serves travel in this direction (ahead = northbound). */
+/**
+ * True when the stop serves travel in this direction (ahead = northbound).
+ * Only `side` makes a stop one-way: a rest area Caltrans lists for one
+ * direction ("ahead" northbound, "back" southbound). Every other place, and a
+ * rest area with no direction, serves both: a park or a hotel across the
+ * freeway is an exit and an overpass away. `axis_side` is the bank of the
+ * road the place sits on (src/lib/axis.mjs), kept for the answer's wording,
+ * never a filter: reading it as one hid half the I-5 stops in each direction.
+ */
 export const servesDirection = (stop, ahead) =>
-  !stop.axis_side ||
-  stop.axis_side === "both" ||
-  stop.axis_side === (ahead ? "right" : "left");
+  stop.side == null || stop.side === (ahead ? "ahead" : "back");
 
 /**
  * The window of stops from a start s in a direction: ahead means increasing
@@ -156,12 +171,20 @@ export function pairedIn(axis, lo, hi) {
 /** The sentence for a pair's people side: counts and kinds, never a name. */
 export function peopleStopsText(c) {
   const parts = [];
-  if (c.cafe) parts.push(c.cafe === 1 ? "a coffee shop" : `${c.cafe} coffee shops`);
+  if (c.cafe)
+    parts.push(c.cafe === 1 ? "a coffee shop" : `${c.cafe} coffee shops`);
   if (c.fast_food)
-    parts.push(c.fast_food === 1 ? "a fast-food place" : `${c.fast_food} fast-food places`);
-  if (c.fuel) parts.push(c.fuel === 1 ? "a gas station" : `${c.fuel} gas stations`);
+    parts.push(
+      c.fast_food === 1
+        ? "a fast-food place"
+        : `${c.fast_food} fast-food places`,
+    );
+  if (c.fuel)
+    parts.push(c.fuel === 1 ? "a gas station" : `${c.fuel} gas stations`);
   const list =
-    parts.length > 1 ? `${parts.slice(0, -1).join(", ")} and ${parts.at(-1)}` : (parts[0] ?? "nothing");
+    parts.length > 1
+      ? `${parts.slice(0, -1).join(", ")} and ${parts.at(-1)}`
+      : (parts[0] ?? "nothing");
   return `${list} within half a mile of the exit (locations from OpenStreetMap; restrooms not verified)`;
 }
 
@@ -170,7 +193,11 @@ export function pairRow(pair, graph) {
   const p = graph.placeById.get(pair.dogStop.placeId);
   return {
     exit: pair.exit,
-    people_stops: { ...pair.peopleStops, restrooms: "unverified", source: "OpenStreetMap" },
+    people_stops: {
+      ...pair.peopleStops,
+      restrooms: "unverified",
+      source: "OpenStreetMap",
+    },
     dog_stop: {
       ...pair.dogStop,
       url: p?.url ?? null,
@@ -183,7 +210,11 @@ export function pairRow(pair, graph) {
 export function pairLine(row) {
   const d = row.dog_stop;
   const leash =
-    d.leash === "required" ? ", on leash" : d.leash?.startsWith("off_leash") ? ", off leash" : "";
+    d.leash === "required"
+      ? ", on leash"
+      : d.leash?.startsWith("off_leash")
+        ? ", off leash"
+        : "";
   return [
     `- Exit ${row.exit.ref}${row.exit.name ? ` (${row.exit.name})` : ""}, mile ${row.exit.mile.toFixed(1)} (s ${row.exit.s.toLocaleString("en-US")} m): ${peopleStopsText(row.people_stops)}.`,
     `  Dogs: ${d.name}, about ${d.walkMin} minute${d.walkMin === 1 ? "" : "s"} on foot (${(d.distM / MILE_M).toFixed(1)} mi), ${d.answer === "yes" ? "dogs allowed" : "allowed with restrictions"}${leash}. ${d.citation}`,

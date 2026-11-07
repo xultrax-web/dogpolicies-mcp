@@ -1,12 +1,13 @@
 import * as z from "zod/v4";
 import { READ_ONLY } from "../../core/server.mjs";
-import { fail } from "../../core/errors.mjs";
 import { result } from "../../core/result.mjs";
 import { LIMITS } from "../../config.mjs";
 import {
   Envelope,
   OSM_ATTRIBUTION,
+  OutcomeFields,
   PlaceItem,
+  answer,
   summary,
   summaryLine,
 } from "./common.mjs";
@@ -130,6 +131,13 @@ Examples:
     }),
     outputSchema: z.looseObject({
       ...Envelope,
+      ...OutcomeFields,
+      nearest_i5: z
+        .looseObject({})
+        .optional()
+        .describe(
+          "With a point too far from I-5: the nearest point on I-5 and how far it is",
+        ),
       axis_version: z.string(),
       strips: z.array(
         z.looseObject({
@@ -150,8 +158,26 @@ Examples:
     }),
     annotations: READ_ONLY,
     handler: async (args) => {
+      const format = args.response_format;
+      const envelope = ctx.citations.envelope(ctx.graph.as_of);
       if (!axis)
-        return fail("unavailable", "This data snapshot carries no I-5 axis.");
+        return answer({
+          outcome: "unavailable",
+          code: "unavailable",
+          message:
+            'This data snapshot carries no I-5 axis, so the corridor cannot be read; dogpolicies_route_stops with route="i-5" still lists the stops by mile.',
+          shape: {
+            ...envelope,
+            axis_version: "",
+            strips: [],
+            window: null,
+            total: 0,
+            stops: [],
+            paired_stops: [],
+          },
+          next: ['dogpolicies_route_stops with route="i-5"'],
+          format,
+        });
       const today = ctx.today();
       const cal = calibrationOf(axis);
       const stripsOut = axis.strips.map((st) => {
@@ -197,11 +223,49 @@ Examples:
         startS = ahead ? window.lo_s : window.hi_s;
       } else if (args.near) {
         const pos = positionOf(route, args.near);
-        if (!pos)
-          return fail(
-            "invalid",
-            "The point is more than 25 miles from I-5 in California.",
-          );
+        if (!pos) {
+          // Too far from the road to start a window there: say how far, and
+          // which stretch is nearest, so the next call can be right.
+          const far = positionOf(route, args.near, { maxOffMiles: 2000 });
+          const strip = far ? stripAt(axis, far.s) : null;
+          const message = far
+            ? `The point is ${far.off_miles} miles from I-5 in California (nearest at mile ${far.mile}, ${strip.name.replace(/^I-5 · /, "")}); a window starts within 25 miles of the road.`
+            : "The point is not near I-5 in California.";
+          return answer({
+            outcome: "bad_input",
+            code: "invalid",
+            message,
+            shape: {
+              ...envelope,
+              ...(far
+                ? {
+                    nearest_i5: {
+                      mile: far.mile,
+                      s: far.s,
+                      miles_away: far.off_miles,
+                      strip: strip.id,
+                    },
+                  }
+                : {}),
+              axis_version: axis.version,
+              strips: stripsOut,
+              window: null,
+              total: 0,
+              stops: [],
+              paired_stops: [],
+            },
+            next: [
+              ...(far
+                ? [
+                    `strip="${strip.id}" reads the stretch nearest the point`,
+                    `from_mile=${Math.max(0, Math.round(far.mile - 25))}, to_mile=${Math.round(far.mile + 25)} reads 50 miles around it`,
+                  ]
+                : []),
+              "dogpolicies_near with the town answers what is around the point itself",
+            ],
+            format,
+          });
+        }
         startS = pos.s;
         const end = ahead
           ? pos.s + args.ahead_miles * MILE_M

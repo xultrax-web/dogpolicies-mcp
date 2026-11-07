@@ -193,19 +193,30 @@ test("get_place: full record with sources, rule ids, not_stated, quote marked as
       d.url,
       `${sharedRuntime().graph.site.url}/places/carmel-beach/`,
     );
-    for (const id of [
-      "nope",
-      "../etc/passwd",
-      "Carmel Beach",
-      "a".repeat(121),
-    ]) {
-      const e = await client
-        .callTool({ name: "dogpolicies_get_place", arguments: { id } })
-        .catch(() => ({ isError: true }));
-      assert.ok(e.isError, `rejects ${id}`);
-      if (e.structuredContent)
-        assert.equal(e.structuredContent.error.code, "not_found");
+    // a place's exact name finds it (assistants often pass the name instead of the id)
+    const named = await client.callTool({
+      name: "dogpolicies_get_place",
+      arguments: { id: "Carmel Beach" },
+    });
+    assert.ok(!named.isError, "finds Carmel Beach by name");
+    assert.equal(named.structuredContent.id, "carmel-beach");
+    // an id nothing matches is an answer with close matches, never an error;
+    // one the schema refuses (too long) is rejected before the handler runs
+    for (const id of ["nope", "../etc/passwd"]) {
+      const e = await call(client, "dogpolicies_get_place", { id });
+      assert.ok(!e.isError, `answers ${id}`);
+      assert.equal(e.structuredContent.outcome, "no_match");
+      assert.equal(e.structuredContent.code, "not_found");
+      assert.ok(Array.isArray(e.structuredContent.did_you_mean));
+      assert.match(text(e), /Try next:/);
     }
+    const long = await client
+      .callTool({
+        name: "dogpolicies_get_place",
+        arguments: { id: "a".repeat(121) },
+      })
+      .catch(() => ({ isError: true }));
+    assert.ok(long.isError, "the schema rejects an id over 120 characters");
   }));
 
 test("get_place: an OpenStreetMap hotel carries the ODbL attribution", () =>
@@ -313,7 +324,10 @@ test("get_brand_policy: by id and by name, with exceptions and counts; unknown b
     const e = await call(client, "dogpolicies_get_brand_policy", {
       brand: "Nonesuch Inns",
     });
-    assert.equal(e.structuredContent.error.code, "not_found");
+    assert.ok(!e.isError, "an unknown brand is an answer");
+    assert.equal(e.structuredContent.outcome, "no_match");
+    assert.equal(e.structuredContent.code, "not_found");
+    assert.ok(e.structuredContent.did_you_mean.length >= 1);
     assert.match(text(e), /Covered brands:/);
   }));
 
@@ -341,7 +355,10 @@ test("browse_answers: lists questions, then a question's places; unknown slug er
     const e = await call(client, "dogpolicies_browse_answers", {
       slug: "no-such-question",
     });
-    assert.equal(e.structuredContent.error.code, "not_found");
+    assert.ok(!e.isError, "an unknown slug is an answer");
+    assert.equal(e.structuredContent.outcome, "no_match");
+    assert.ok(e.structuredContent.questions.length > 50, "with the whole list");
+    assert.ok(Array.isArray(e.structuredContent.did_you_mean));
   }));
 
 test("route_stops: miles in driving order, direction reversal, a start point, kinds, weight check", () =>
@@ -431,7 +448,10 @@ test("get_rule: a rule by id with its place citation, permalink and freshness; b
     );
     for (const bad of ["rul_nope_fee", "rul_../x_fee", "123456"]) {
       const e = await call(client, "dogpolicies_get_rule", { id: bad });
-      assert.equal(e.structuredContent.error.code, "not_found");
+      assert.ok(!e.isError, `answers ${bad}`);
+      assert.equal(e.structuredContent.outcome, "no_match");
+      assert.equal(e.structuredContent.code, "not_found");
+      assert.equal(e.structuredContent.rule, null);
     }
   }));
 
@@ -489,7 +509,13 @@ test("report_correction (offline): validates the place, never sends, returns the
       place_id: "no-such-place",
       message: "Something is wrong here.",
     });
-    assert.equal(e.structuredContent.error.code, "not_found");
+    assert.ok(
+      !e.isError,
+      "an unknown place is an answer, and nothing is filed",
+    );
+    assert.equal(e.structuredContent.outcome, "bad_input");
+    assert.equal(e.structuredContent.status, "not_sent");
+    assert.equal(e.structuredContent.report_id, null);
     const short = await client
       .callTool({
         name: "dogpolicies_report_correction",
@@ -535,3 +561,25 @@ test("freshness follows the date the server is asked on", async () => {
     );
   }, later);
 });
+
+test("near: neighborhoods, regions, hyphens and small typos resolve; nonsense does not", () =>
+  withClient(async (client) => {
+    const call = (place) =>
+      client.callTool({ name: "dogpolicies_near", arguments: { place } });
+    const vanNuys = await call("van nuys");
+    assert.ok(!vanNuys.isError, "Van Nuys");
+    assert.match(vanNuys.structuredContent.label, /Van Nuys/);
+    const valley = await call("central-valley");
+    assert.ok(!valley.isError, "central-valley");
+    assert.equal(valley.structuredContent.label, "Central Valley");
+    const typo = await call("Montery");
+    assert.ok(!typo.isError, "Montery");
+    assert.match(typo.structuredContent.label, /Monterey.*closest match/);
+    const junk = await call("zzyzx test town");
+    assert.ok(!junk.isError, "nonsense is an answer, not an error");
+    assert.equal(junk.structuredContent.outcome, "no_match");
+    assert.equal(junk.structuredContent.code, "not_found");
+    assert.equal(junk.structuredContent.center, null);
+    assert.equal(junk.structuredContent.total, 0);
+    assert.ok(junk.structuredContent.next.length > 0, "says what to call next");
+  }));
