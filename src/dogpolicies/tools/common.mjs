@@ -385,10 +385,20 @@ function region(graph, name, state) {
 
 /** A neighborhood of a city we cover, as a search center (NEIGHBORHOODS). */
 function neighborhood(name, state) {
+  // the asked name arrives with hyphens and dots read as spaces; names and aliases are read the same way
+  const key = (s) =>
+    norm(s)
+      .replace(/[.,_-]/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
   const n = NEIGHBORHOODS.find(
-    (x) => norm(x.name) === name && (!state || x.state === state),
+    (x) =>
+      (key(x.name) === name || (x.aliases ?? []).some((a) => key(a) === name)) &&
+      (!state || x.state === state),
   );
-  return n ? { ...n, kind: "city" } : null;
+  if (!n) return null;
+  const { aliases: _aliases, ...center } = n;
+  return { ...center, kind: "city" };
 }
 
 /**
@@ -669,7 +679,9 @@ export function editDistance(a, b, limit) {
 /**
  * Neighborhoods people search by name that have no places of their own in the
  * data yet, each inside a city we cover: used only as a search center (the
- * radius finds the real places around it). Centers are approximate.
+ * radius finds the real places around it). Centers are approximate. `aliases`
+ * are the other names people say ("Venice Beach", "DTLA", "the Mission");
+ * 0.4.1 added the second ring (roadmap R-01) from the misses log.
  */
 const NEIGHBORHOODS = [
   {
@@ -727,6 +739,7 @@ const NEIGHBORHOODS = [
     state: "CA",
     lat: 33.985,
     lon: -118.4695,
+    aliases: ["venice beach"],
   },
   {
     name: "San Pedro",
@@ -741,5 +754,354 @@ const NEIGHBORHOODS = [
     state: "CA",
     lat: 34.0869,
     lon: -118.2702,
+  },
+  {
+    name: "Koreatown",
+    county: "Los Angeles",
+    state: "CA",
+    lat: 34.0577,
+    lon: -118.3009,
+    aliases: ["k-town", "ktown"],
+  },
+  {
+    name: "Downtown Los Angeles",
+    county: "Los Angeles",
+    state: "CA",
+    lat: 34.0407,
+    lon: -118.2468,
+    aliases: ["dtla", "downtown la"],
+  },
+  {
+    name: "Echo Park",
+    county: "Los Angeles",
+    state: "CA",
+    lat: 34.0782,
+    lon: -118.2606,
+  },
+  {
+    name: "Los Feliz",
+    county: "Los Angeles",
+    state: "CA",
+    lat: 34.1064,
+    lon: -118.2886,
+  },
+  {
+    name: "Highland Park",
+    county: "Los Angeles",
+    state: "CA",
+    lat: 34.1115,
+    lon: -118.1926,
+  },
+  {
+    name: "Eagle Rock",
+    county: "Los Angeles",
+    state: "CA",
+    lat: 34.1394,
+    lon: -118.2111,
+  },
+  {
+    name: "Westwood",
+    county: "Los Angeles",
+    state: "CA",
+    lat: 34.0633,
+    lon: -118.4456,
+  },
+  {
+    name: "Brentwood",
+    county: "Los Angeles",
+    state: "CA",
+    lat: 34.052,
+    lon: -118.4732,
+  },
+  {
+    name: "Pacific Palisades",
+    county: "Los Angeles",
+    state: "CA",
+    lat: 34.048,
+    lon: -118.526,
+  },
+  {
+    name: "Playa del Rey",
+    county: "Los Angeles",
+    state: "CA",
+    lat: 33.955,
+    lon: -118.442,
+  },
+  {
+    name: "Mar Vista",
+    county: "Los Angeles",
+    state: "CA",
+    lat: 34.003,
+    lon: -118.432,
+  },
+  {
+    name: "Boyle Heights",
+    county: "Los Angeles",
+    state: "CA",
+    lat: 34.0339,
+    lon: -118.2046,
+  },
+  {
+    name: "Woodland Hills",
+    county: "Los Angeles",
+    state: "CA",
+    lat: 34.1684,
+    lon: -118.6059,
+  },
+  {
+    name: "Tarzana",
+    county: "Los Angeles",
+    state: "CA",
+    lat: 34.1734,
+    lon: -118.5537,
+  },
+  {
+    name: "Reseda",
+    county: "Los Angeles",
+    state: "CA",
+    lat: 34.2011,
+    lon: -118.5363,
+  },
+  {
+    name: "Canoga Park",
+    county: "Los Angeles",
+    state: "CA",
+    lat: 34.2011,
+    lon: -118.5979,
+  },
+  {
+    name: "Chatsworth",
+    county: "Los Angeles",
+    state: "CA",
+    lat: 34.2572,
+    lon: -118.6013,
+  },
+  {
+    name: "Granada Hills",
+    county: "Los Angeles",
+    state: "CA",
+    lat: 34.265,
+    lon: -118.5225,
+  },
+  {
+    name: "Belmont Shore",
+    county: "Los Angeles",
+    state: "CA",
+    lat: 33.759,
+    lon: -118.137,
+  },
+  {
+    name: "Mission District",
+    county: "San Francisco",
+    state: "CA",
+    lat: 37.7599,
+    lon: -122.4148,
+    aliases: ["the mission", "mission"],
+  },
+  {
+    name: "Castro",
+    county: "San Francisco",
+    state: "CA",
+    lat: 37.7609,
+    lon: -122.435,
+    aliases: ["the castro"],
+  },
+  {
+    name: "Noe Valley",
+    county: "San Francisco",
+    state: "CA",
+    lat: 37.7502,
+    lon: -122.4337,
+  },
+  {
+    name: "Marina District",
+    county: "San Francisco",
+    state: "CA",
+    lat: 37.803,
+    lon: -122.436,
+    aliases: ["the marina"],
+  },
+  {
+    name: "Richmond District",
+    county: "San Francisco",
+    state: "CA",
+    lat: 37.78,
+    lon: -122.483,
+    aliases: ["inner richmond", "outer richmond"],
+  },
+  {
+    name: "Sunset District",
+    county: "San Francisco",
+    state: "CA",
+    lat: 37.753,
+    lon: -122.49,
+    aliases: ["the sunset", "inner sunset", "outer sunset"],
+  },
+  {
+    name: "Haight-Ashbury",
+    county: "San Francisco",
+    state: "CA",
+    lat: 37.7692,
+    lon: -122.4481,
+    aliases: ["the haight", "haight"],
+  },
+  {
+    name: "Bernal Heights",
+    county: "San Francisco",
+    state: "CA",
+    lat: 37.741,
+    lon: -122.415,
+  },
+  {
+    name: "Potrero Hill",
+    county: "San Francisco",
+    state: "CA",
+    lat: 37.7605,
+    lon: -122.4,
+  },
+  {
+    name: "South of Market",
+    county: "San Francisco",
+    state: "CA",
+    lat: 37.7785,
+    lon: -122.4056,
+    aliases: ["soma"],
+  },
+  {
+    name: "Dogpatch",
+    county: "San Francisco",
+    state: "CA",
+    lat: 37.758,
+    lon: -122.389,
+  },
+  {
+    name: "Pacific Heights",
+    county: "San Francisco",
+    state: "CA",
+    lat: 37.7925,
+    lon: -122.4382,
+  },
+  {
+    name: "Nob Hill",
+    county: "San Francisco",
+    state: "CA",
+    lat: 37.793,
+    lon: -122.4161,
+  },
+  {
+    name: "North Beach",
+    county: "San Francisco",
+    state: "CA",
+    lat: 37.806,
+    lon: -122.4103,
+  },
+  {
+    name: "Hayes Valley",
+    county: "San Francisco",
+    state: "CA",
+    lat: 37.7759,
+    lon: -122.4245,
+  },
+  {
+    name: "Rockridge",
+    county: "Alameda",
+    state: "CA",
+    lat: 37.844,
+    lon: -122.252,
+  },
+  {
+    name: "Temescal",
+    county: "Alameda",
+    state: "CA",
+    lat: 37.834,
+    lon: -122.263,
+  },
+  {
+    name: "Midtown Sacramento",
+    county: "Sacramento",
+    state: "CA",
+    lat: 38.572,
+    lon: -121.471,
+    aliases: ["midtown"],
+  },
+  {
+    name: "Willow Glen",
+    county: "Santa Clara",
+    state: "CA",
+    lat: 37.308,
+    lon: -121.89,
+  },
+  {
+    name: "La Jolla",
+    county: "San Diego",
+    state: "CA",
+    lat: 32.8328,
+    lon: -117.2713,
+  },
+  {
+    name: "Pacific Beach",
+    county: "San Diego",
+    state: "CA",
+    lat: 32.7978,
+    lon: -117.2403,
+  },
+  {
+    name: "Mission Beach",
+    county: "San Diego",
+    state: "CA",
+    lat: 32.77,
+    lon: -117.252,
+  },
+  {
+    name: "Hillcrest",
+    county: "San Diego",
+    state: "CA",
+    lat: 32.748,
+    lon: -117.163,
+  },
+  {
+    name: "North Park",
+    county: "San Diego",
+    state: "CA",
+    lat: 32.741,
+    lon: -117.129,
+  },
+  {
+    name: "Point Loma",
+    county: "San Diego",
+    state: "CA",
+    lat: 32.74,
+    lon: -117.24,
+  },
+  {
+    name: "Gaslamp Quarter",
+    county: "San Diego",
+    state: "CA",
+    lat: 32.7114,
+    lon: -117.16,
+    aliases: ["gaslamp", "downtown san diego"],
+  },
+  {
+    name: "The Strip",
+    county: "Clark",
+    state: "NV",
+    lat: 36.1147,
+    lon: -115.1728,
+    aliases: ["las vegas strip", "vegas strip"],
+  },
+  {
+    name: "Summerlin",
+    county: "Clark",
+    state: "NV",
+    lat: 36.186,
+    lon: -115.321,
+  },
+  {
+    name: "Downtown Las Vegas",
+    county: "Clark",
+    state: "NV",
+    lat: 36.1699,
+    lon: -115.1398,
+    aliases: ["fremont street"],
   },
 ];

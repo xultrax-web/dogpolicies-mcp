@@ -147,10 +147,17 @@ const instructions = (ctx) =>
 // The site address without a trailing slash, for links in the server info.
 const siteRoot = (ctx) => ctx.graph.site.url.replace(/\/+$/, "");
 
-/** A fresh MCP server over a runtime, for one connection. */
+/**
+ * A fresh MCP server over a runtime, for one connection.
+ * @param {object} [options]
+ * @param {string} [options.build] the build this server was deployed from (a
+ *   git commit); reported after the package version as semver build metadata,
+ *   `0.4.0+6a974ec`, so a deploy can tell its own code from the previous one
+ *   when the package version did not change. Absent for the stdio server.
+ */
 export function createServer(
   ctx,
-  { onToolCall, onToolResult, aliasPrefix } = {},
+  { onToolCall, onToolResult, aliasPrefix, build } = {},
 ) {
   ctx._stats.servers++;
   return createToolServer({
@@ -161,7 +168,7 @@ export function createServer(
     identity: {
       name: SERVER_NAME,
       title: SERVER_TITLE,
-      version: PACKAGE_VERSION,
+      version: build ? `${PACKAGE_VERSION}+${build}` : PACKAGE_VERSION,
       // Shown beside the connector in Claude, ChatGPT and other clients that read it.
       websiteUrl: `${siteRoot(ctx)}/`,
       icons: [

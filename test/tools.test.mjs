@@ -575,6 +575,20 @@ test("near: neighborhoods, regions, hyphens and small typos resolve; nonsense do
     const typo = await call("Montery");
     assert.ok(!typo.isError, "Montery");
     assert.match(typo.structuredContent.label, /Monterey.*closest match/);
+    // 0.4.1: the second ring of neighborhoods and the names people say for them (roadmap R-01)
+    for (const [asked, expected] of [
+      ["koreatown", /Koreatown, CA/],
+      ["venice beach", /Venice, CA/],
+      ["the mission", /Mission District, CA/],
+      ["dtla", /Downtown Los Angeles, CA/],
+      ["La Jolla", /La Jolla, CA/],
+      ["the strip", /The Strip, NV/],
+    ]) {
+      const r = await call(asked);
+      assert.ok(!r.isError, asked);
+      assert.notEqual(r.structuredContent.outcome, "no_match", `${asked} resolves`);
+      assert.match(r.structuredContent.label, expected, asked);
+    }
     const junk = await call("zzyzx test town");
     assert.ok(!junk.isError, "nonsense is an answer, not an error");
     assert.equal(junk.structuredContent.outcome, "no_match");

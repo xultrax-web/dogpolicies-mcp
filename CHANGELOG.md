@@ -10,6 +10,40 @@ The data inside the package has its own date (`as_of` in every result). A
 new package version ships a new snapshot; the server also refreshes from the
 site on its own when the network allows.
 
+## 0.4.1 - 2026-11-08
+
+The first roadmap release (`docs/ROADMAP.md` in the data repository: R-01,
+R-02, R-03). The misses log and the directory's numbers said where the first
+week leaked; this closes those leaks.
+
+Added
+
+- Forty-eight more neighborhoods as search centers for `dogpolicies_near`,
+  `dogpolicies_plan_trip` and every tool that takes a place: the rest of the
+  San Fernando Valley and the Westside, Koreatown, Downtown Los Angeles, Echo
+  Park, Los Feliz, Highland Park, San Francisco's districts (the Mission, the
+  Castro, Noe Valley, the Marina, the Richmond and Sunset districts,
+  Haight-Ashbury, SoMa, North Beach and more), Rockridge and Temescal, Midtown
+  Sacramento, Willow Glen, La Jolla, Pacific Beach, Mission Beach, Hillcrest,
+  North Park, Point Loma, the Gaslamp Quarter, the Las Vegas Strip, Summerlin
+  and Downtown Las Vegas; and the names people say for them ("Venice Beach",
+  "DTLA", "K-town", "the Mission", "SoMa", "the Strip", "Fremont Street").
+- `createServer(ctx, { build })`: an optional build id, reported after the
+  package version as semver build metadata (`0.4.1+6a974ec`). The hosted
+  server sets it to the deployed commit so a deploy can recognize its own code;
+  the stdio server reports the bare version as before.
+
+Hosted server (dogpolicies.com/mcp/)
+
+- A POST whose `Accept` header lists only `application/json`, or nothing, is
+  answered instead of refused with 406; a CORS preflight is answered; a person
+  who opens the address in a browser sees how to connect instead of a 405.
+- After `initialize` the server hands out an `mcp-session-id` that carries the
+  client's own name and version as a label (no state behind it; the transport
+  stays stateless), so the usage tally names clients on every protocol
+  version, not only the newest. A request without one is named by a
+  User-Agent that identifies an assistant.
+
 ## 0.4.0 - 2026-11-07
 
 Answers, not errors. A question the data cannot answer now comes back as a

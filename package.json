@@ -1,6 +1,6 @@
 {
   "name": "dogpolicies-mcp",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "MCP server for verified dog rules at California and Nevada parks, beaches, trails, hotels, campgrounds and restaurant patios: leash rules, pet fees, weight limits, trip planning, every fact with its official source and the date it was checked.",
   "mcpName": "io.github.xultrax-web/dogpolicies-mcp",
   "type": "module",
