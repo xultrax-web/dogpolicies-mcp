@@ -202,19 +202,13 @@ export function createServer(
       // Shown beside the connector in Claude, ChatGPT and other clients that read it.
       websiteUrl: `${siteRoot(ctx)}/`,
       icons: [
-        // The dog head on a transparent background, no tile: dark-green dots
-        // for light backgrounds, mint dots for dark ones.
+        // The close-up face of the homepage dog on its dark-green tile, the
+        // site's app icon and the directory listing's icon (0.5.1). It carries
+        // its own background, so one icon serves light and dark themes.
         {
-          src: `${siteRoot(ctx)}/brand/mcp-icon-light-v3.png`,
+          src: `${siteRoot(ctx)}/brand/mcp-icon-face-256.png`,
           mimeType: "image/png",
           sizes: ["256x256"],
-          theme: "light",
-        },
-        {
-          src: `${siteRoot(ctx)}/brand/mcp-icon-dark-v2.png`,
-          mimeType: "image/png",
-          sizes: ["256x256"],
-          theme: "dark",
         },
       ],
     },

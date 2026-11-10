@@ -10,6 +10,12 @@ The data inside the package has its own date (`as_of` in every result). A
 new package version ships a new snapshot; the server also refreshes from the
 site on its own when the network allows.
 
+## 0.5.1 - 2026-11-10
+
+The connector icon is the close-up face of the homepage dog on its dark-green tile, the same picture as the
+website's app icon and the Claude directory listing. One icon replaces the light and dark transparent heads; it carries
+its own background. No tool, input or output changed (decision 127).
+
 ## 0.5.0 - 2026-11-10
 
 The Thanksgiving release (`docs/ROADMAP.md` in the data repository: R-04, R-05, R-11 to R-15, R-26, and slices of
@@ -368,7 +374,7 @@ Added
   site's own data (same thirteen tools, resources and prompts); it keeps the
   old `dogrulebook_*` tool names as aliases.
 - An eval set of 33 real questions scored for tool selection and answer
-  facts, a fuzz test, a CI matrix (Linux, macOS, Windows × Node 20, 22,
+  facts, a fuzz test, a CI matrix (Linux, macOS, Windows Ã— Node 20, 22,
   24), a dependency audit, a generated tool reference (`docs/tools.md`),
   a threat model (`docs/security.md`) and a versioning policy.
 - Release from a public repository with npm trusted publishing and

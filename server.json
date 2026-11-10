@@ -6,33 +6,24 @@
   "websiteUrl": "https://dogpolicies.com/mcp/about/",
   "icons": [
     {
-      "src": "https://dogpolicies.com/brand/mcp-icon-light-v3.png",
+      "src": "https://dogpolicies.com/brand/mcp-icon-face-256.png",
       "mimeType": "image/png",
       "sizes": [
         "256x256"
-      ],
-      "theme": "light"
-    },
-    {
-      "src": "https://dogpolicies.com/brand/mcp-icon-dark-v2.png",
-      "mimeType": "image/png",
-      "sizes": [
-        "256x256"
-      ],
-      "theme": "dark"
+      ]
     }
   ],
   "repository": {
     "url": "https://github.com/xultrax-web/dogpolicies-mcp",
     "source": "github"
   },
-  "version": "0.5.0",
+  "version": "0.5.1",
   "packages": [
     {
       "registryType": "npm",
       "registryBaseUrl": "https://registry.npmjs.org",
       "identifier": "dogpolicies-mcp",
-      "version": "0.5.0",
+      "version": "0.5.1",
       "runtimeHint": "npx",
       "transport": {
         "type": "stdio"
