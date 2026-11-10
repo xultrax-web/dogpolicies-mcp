@@ -32,8 +32,10 @@ function placeRecord(
     area: p.areaId ? (areaName[p.areaId] ?? null) : null,
     region: p.regionId ? (regionName[p.regionId] ?? null) : null,
     status: p.answer.status,
-    answer: p.answer.headline,
-    citation: p.citation,
+    // The year-round answer and citation: a seasonal rule in effect leads
+    // them at call time (`today`, from facts.seasons), never in the snapshot.
+    answer: p.answer.yearRound ?? p.answer.headline,
+    citation: p.citationYearRound ?? p.citation,
     brand_policy: Boolean(p.facts.dogsAllowed?.inheritedFrom),
     confidence:
       p.rules.find((r) => r.kind === "dogsAllowed")?.confidence ?? "unstated",
@@ -222,6 +224,19 @@ export function towns(places) {
 }
 
 /**
+ * The snapshot's gazetteer: every area with located places, then every city
+ * and county (towns). The website's /data/names-v1.json carries the same list.
+ */
+export function gazetteerTowns(graph) {
+  return [
+    ...(graph.areas ?? [])
+      .map((a) => areaTown(a, graph.places))
+      .filter(Boolean),
+    ...towns(graph.places),
+  ];
+}
+
+/**
  * @param {object} graph the loaded graph (loadGraph())
  * @param {object} deps helpers from the repository
  * @param {object} deps.site
@@ -255,12 +270,7 @@ export function buildSnapshot(graph, deps) {
     },
     regions: graph.regions.map((r) => ({ id: r.id, name: r.name })),
     areas: (graph.areas ?? []).map((a) => areaRecord(a, graph.places)),
-    towns: [
-      ...(graph.areas ?? [])
-        .map((a) => areaTown(a, graph.places))
-        .filter(Boolean),
-      ...towns(graph.places),
-    ],
+    towns: gazetteerTowns(graph),
     places: graph.places.map((p) => placeRecord(p, ctx)),
     brands: graph.brands.map((b) => brandRecord(b, ctx)),
     answers: answers.map((a) => ({
@@ -278,6 +288,17 @@ export function buildSnapshot(graph, deps) {
           state: r.state,
           length_miles: r.lengthMiles,
           heading: routeGuides[id]?.heading === "east" ? "east" : "north",
+          // The guide's named stretches ("Donner Pass and Truckee", miles 170-204),
+          // for the tools that take a stretch by name (0.5.0).
+          ...(routeGuides[id]?.highlights?.length
+            ? {
+                stretches: routeGuides[id].highlights.map((h) => ({
+                  name: h.name,
+                  from_mile: h.fromMile,
+                  to_mile: h.toMile,
+                })),
+              }
+            : {}),
           points: r.points,
           // The I-5 axis: calibration table, strips, paired stops (0.3.0).
           ...(axes[id] ? { axis: axes[id] } : {}),

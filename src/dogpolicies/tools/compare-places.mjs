@@ -13,6 +13,7 @@ import {
   noMatchText,
   suggestPlaces,
   summary,
+  formatSchema,
 } from "./common.mjs";
 
 // The facts worth a column, in order; a place without the fact shows "not stated".
@@ -31,19 +32,27 @@ export const comparePlaces = (ctx) => ({
   title: "Compare places side by side",
   since: "0.2.0",
   cache: true,
-  description: `Which one is better for a dog? Compare two to six places on the facts that decide a dog trip: dogs allowed, leash rule, where dogs may go, pet fee, weight limit, pets per room, restrictions, plus confidence, freshness and who confirmed each record. One row per fact, one column per place, every place with its citation.
-
-Answers "which one?" between candidates; ids come from any search result (an exact name or a near miss resolves to the one clear match). An id nothing matches is listed under missing with close matches, and the rest are still compared (outcome partial); with fewer than two found, the answer is no_match with suggestions. Example: ids=["carmel-beach","asilomar-state-beach"].`,
+  description: `Which of these places is better for my dog: Carmel Beach or Asilomar, two parks, three hotels?
+Sets two to six known places side by side, fact by fact.
+Input: ids from search results ("carmel-beach", "asilomar-state-beach"); an exact name or a near miss resolves to the one clear match.
+Returns one row per fact (dogs allowed, leash rule, where dogs may go, pet fee, weight limit, pets per room, restrictions) and one column per place, with confidence, freshness, who confirmed it, and a citation for each. An id that matches nothing is listed under missing with close matches while the rest are still compared (outcome partial); fewer than two found is no_match with suggestions.`,
   inputSchema: z.strictObject({
     ids: z
-      .array(z.string().min(2).max(120))
-      .min(2)
-      .max(6)
+      .preprocess(
+        // one string, "a, b" or "a,b": a list
+        (v) =>
+          typeof v === "string"
+            ? v
+                .split(",")
+                .map((x) => x.trim())
+                .filter(Boolean)
+            : v,
+        z.array(z.string().min(2).max(120)).min(2).max(6),
+      )
       .describe("Two to six place ids from search results"),
-    response_format: z
-      .enum(["markdown", "json"])
-      .default("markdown")
-      .describe("'markdown' for readable text, 'json' for structured data"),
+    response_format: formatSchema().describe(
+      "'markdown' for readable text, 'json' for structured data",
+    ),
   }),
   outputSchema: z.looseObject({
     ...Envelope,

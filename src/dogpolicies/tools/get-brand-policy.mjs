@@ -38,9 +38,10 @@ export const getBrandPolicy = (ctx) => ({
   title: "Get hotel brand pet policy",
   since: "0.1.0",
   cache: true,
-  description: `A hotel chain's published pet policy: pets per room, weight limit, fee, rules, listed exceptions and how many California and Nevada properties carry it.
-
-Brands covered: ${ctx.graph.brands.map((b) => `${b.name} (${b.id})`).join(", ")}. Example: brand="red-roof" or brand="Kimpton".`,
+  description: `What is this hotel chain's pet policy: how many pets, weight limit, fee, exceptions?
+Answers chain-wide questions such as "What is Motel 6's pet policy?" or "Does Kimpton charge a pet fee?"; it does not work out one hotel's fee for a stay or say whether that hotel confirmed the chain policy.
+Brands covered: Best Western (best-western), Extended Stay America (extended-stay-america), Kimpton Hotels (kimpton), La Quinta by Wyndham (la-quinta), Motel 6 (motel-6), Red Roof Inn (red-roof). Input: brand id or name, e.g. "red-roof" or "Kimpton". Any other chain is not covered.
+Returns the published policy with the source URL, quote and verified date, and how many California and Nevada properties carry it.`,
   inputSchema: z.strictObject({
     brand: z.string().min(2).max(60).describe("Brand id or name"),
     response_format: pageSchema.response_format,

@@ -105,6 +105,32 @@ test("prompts: list, argument completion for towns, and a built message that nam
     );
   }));
 
+test("prompts: town completion never offers 'Carson City County' (a consolidated city), and lists each label once", () =>
+  withClient(async (client) => {
+    for (const [name, argument] of [
+      ["plan_dog_trip", "destination"],
+      ["check_hotel_for_dog", "hotel_or_town"],
+      ["what_can_my_dog_do_here", "place"],
+    ]) {
+      const { completion } = await client.complete({
+        ref: { type: "ref/prompt", name },
+        argument: { name: argument, value: "Carson" },
+      });
+      const values = completion.values;
+      assert.ok(values.includes("Carson City, NV"), `${name}: ${values}`);
+      assert.ok(
+        !values.some((v) => /Carson City County/i.test(v)),
+        `${name}: ${values}`,
+      );
+      assert.equal(new Set(values).size, values.length, `${name}: no repeats`);
+    }
+    const { completion } = await client.complete({
+      ref: { type: "ref/prompt", name: "plan_dog_trip" },
+      argument: { name: "destination", value: "washoe" },
+    });
+    assert.ok(completion.values.includes("Washoe County, NV"), "other counties keep the word");
+  }));
+
 test("near: a town name resolves, results group by kind sorted by distance; unknown town errors", () =>
   withClient(async (client) => {
     const r = await call(client, "dogpolicies_near", {
@@ -224,13 +250,11 @@ test("compare_places: a table with one column per place; bad ids are not_found",
     assert.equal(bad.structuredContent.outcome, "no_match");
     assert.equal(bad.structuredContent.missing[0].id, "nope");
     assert.equal(bad.structuredContent.places.length, 1);
-    const one = await client
-      .callTool({
-        name: "dogpolicies_compare_places",
-        arguments: { ids: ["carmel-beach"] },
-      })
-      .catch(() => ({ isError: true }));
-    assert.ok(one.isError);
+    const one = await call(client, "dogpolicies_compare_places", {
+      ids: ["carmel-beach"],
+    });
+    assert.ok(!one.isError);
+    assert.equal(one.structuredContent.outcome, "bad_input");
   }));
 
 test("changes_near: events limited to the radius, newest first", () =>

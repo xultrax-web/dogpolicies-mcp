@@ -10,6 +10,93 @@ The data inside the package has its own date (`as_of` in every result). A
 new package version ships a new snapshot; the server also refreshes from the
 site on its own when the network allows.
 
+## 0.5.0 - 2026-11-10
+
+The Thanksgiving release (`docs/ROADMAP.md` in the data repository: R-04, R-05, R-11 to R-15, R-26, and slices of
+R-20 and R-21). Plans an assistant can hand over, answers instead of refusals for the words people use, and the I-5
+drive for the holiday.
+
+Added
+
+- `dogpolicies_plan_trip` returns the plan itself: `days` (for each night the stay, a morning beach, trail or
+  off-leash area, an afternoon park and a dinner patio, each a record with its rule, quote, source and verified date;
+  a slot the data cannot fill is null with the reason), `plan_stay` (the pet fee per night and in total with the
+  arithmetic, and whether the dog's weight and number fit), `plan_notes`, and with `save: true` a `trip_url` to a
+  page on dogpolicies.com that carries the whole plan in the link (nothing is stored). New inputs `start_date`,
+  `stay_id` and `save`.
+- `dogpolicies_report_correction` answers with a public `ticket` and a `status_url`, and takes an optional `fact`
+  (which kind of fact is wrong). The ticket's status (filed, then verified or rejected) is public; what the reporter
+  wrote is not.
+- `dogpolicies_changes_since` and `dogpolicies_changes_near` add `corrections`, `corrections_total` and
+  `corrections_note` (live on the hosted server; the stdio server answers an empty list with a note). Both are no
+  longer memoized.
+- `dogpolicies_route_stops` and `dogpolicies_i5_corridor`: an I-5 rest area Caltrans reports fully closed carries
+  `closed_now` (reason, until, source, fetched_at), and the text names the first open stop.
+  `dogpolicies_plan_trip`'s I-5 leg skips closed rest areas and lists them as `closed_now_stops`.
+- Airports as places: eighteen California and Nevada airports resolve by code, "<code> airport", name and common
+  names in `near`, `plan_trip`, `changes_near` and a `find_hotels` query, with a 5-mile default radius.
+- `resolved_from` on any answer where a word was read as a canonical value ("hotel" as lodging, "NB" as north), and
+  `query_read` and `matched_terms` on `dogpolicies_search_places`.
+- `dogpolicies_road_conditions`: chain controls, closures, road weather and sign text right now on I-80, US-50, I-15
+  or I-5 in California, by route, mile range, town or named stretch, with the nearest dog stop. Caltrans feed data,
+  not rules; stale after two hours, `unavailable` without a document.
+- `dogpolicies_subscribe_changes`: Atom and JSON Feed links that follow a place, a town or a highway's stops for rule
+  changes, with 90-day counts and a sentence to hand over; nothing is stored. `dogpolicies_changes_near` takes
+  `place_id`, `route`, `from_mile` and `to_mile`, and adds `rule_changes`, `scope_kind` and `page_url`.
+- `today` on place answers for places with seasonal rules (plover seasons, summer beach hours): what applies on the
+  server's date, until when, what starts within 14 days, with the source; while a seasonal rule applies it leads
+  `answer` and `citation`.
+- `createRestApi`, `restOpenApi`, `operationSlug`, `parseQuery` and `wrapToolHandler`: the read-only tools as HTTP
+  operations with their OpenAPI 3.1 fragment, generated from the tool schemas, through the same wrapper every tool
+  call uses. `trustSnapshot`: an optional trusted-snapshot path for hosts that build their own data.
+
+Changed
+
+- Tool descriptions and the server instructions are rewritten around the question a traveler asks, when to call
+  each tool and when not to, the accepted input forms and what the answer carries; the prompts and the `about`
+  resource follow. Names and schemas are unchanged.
+- Tools accept natural words for enums, booleans, lists, routes, brands, areas, points and dates. Arguments that
+  still fail the schema return `outcome: "bad_input"` with the `accepted` values instead of a protocol error. A
+  `limit` above the maximum is capped.
+- `dogpolicies_search_places` reads a free-text query ("dog friendly hotels in Carmel") as kind words plus a place,
+  and falls back to a labeled partial match. `type` also accepts `rest_area` and `stop`.
+- `dogpolicies_i5_conditions`: when the live read fails, it answers from the last reading, marked stale with its
+  age; `unavailable` only when there has never been one.
+- A town name with hyphens ("Carmel-by-the-Sea") resolves.
+- Text queries in `find_hotels` and `search_places` match words from their start: "Reno" no longer finds Moreno
+  Valley, while "carm" still finds Carmel.
+- Answers that read live data (`route_stops`, `i5_corridor`, `plan_trip`) are cached five minutes (`cacheTtlMs`).
+- A place outside California and Nevada answers `no_match` with code `out_of_coverage`, naming it, with the closest
+  covered towns near the state line; off-topic questions (flights, car rentals, weather) answer code `off_topic` with
+  two example questions.
+- `changes_since` and `changes_near`: the corrections read has a two-second deadline.
+- Closures: an end time no date can hold reads "end not set" instead of failing the call.
+- Prompt argument completion offers "Carson City, NV", never "Carson City County, NV".
+- A correction for a place the data does not hold gets no public ticket.
+
+Hosted server (dogpolicies.com/mcp/)
+
+- Answers no longer wait for the usage tally; a cold start skips a full snapshot validation. Per-tool latency (p50
+  and p95 from fixed buckets) is in the private operations summary.
+- The read-only tools are also GET operations at `/api/v1/ask/<operation>`, described in `/api/v1/openapi.json`.
+- `/status/` and `/api/v1/status.json`: the deployed version and commit, the data date, the I-5 conditions age, the
+  last re-check, open corrections and the 7-day call tally. The `about` resource links them.
+- Correction tickets at `/corrections/status/<ticket>/` and `/api/v1/corrections.json`.
+- Requests with `?probe=desk-eval` count as our own test traffic.
+- The door: a wildcard, missing or other-case `Accept` gets the full one (was 406); a JSON body sent as `text/plain`,
+  with no Content-Type or as `application/json-rpc` is answered (was 415); a client that accepts only JSON gets
+  `application/json`; `DELETE /mcp/` (a client ending its session) is a 204 (was 405).
+- Rate limits: Anthropic's published outbound addresses get their own, larger allowance, so Claude users behind the
+  proxy no longer share one; a 429 echoes the request id.
+- A call in flight when the engine's Durable Object resets is retried once; a failure is a JSON-RPC 503 with CORS.
+- Change feeds at `/feeds/changes/place|near|route/<scope>.atom` and `.json`, computed per request.
+- Conditions documents for I-80, US-50 and I-15 beside I-5 (`/api/v1/conditions/<route>.json`), from one pass over
+  the Caltrans district feeds.
+
+Data in this release: four I-5 answer pages for the Thanksgiving drive, four for I-15, I-80 and US-50, an airport
+pet relief areas page, and new verified records (I-5 dog parks, independent I-5 hotels, airport relief areas,
+restaurants that welcome dogs on the patio).
+
 ## 0.4.1 - 2026-11-08
 
 The first roadmap release (`docs/ROADMAP.md` in the data repository: R-01,

@@ -9,12 +9,41 @@ import { answer } from "../../core/errors.mjs";
 import { pageResult, result } from "../../core/result.mjs";
 import { miles } from "../../core/geo.mjs";
 import { placeFreshness } from "../graph.mjs";
+import { closureLine } from "../vendor/closures.mjs";
 import { STATES, STATE_NAME, cityCounty } from "../stay.mjs";
+import {
+  AREA_NAMES,
+  FORMAT_SYNONYMS,
+  REGION_NAMES,
+  STATE_SYNONYMS,
+  choice,
+  idChoice,
+  idText,
+  pageSize,
+  pointInput,
+} from "./tolerant.mjs";
+import { seasonNow, todayOf } from "../vendor/season.mjs";
+import {
+  AIRPORT_RADIUS_MILES,
+  editDistance,
+  findAirport,
+  gazetteer,
+  regionCenters,
+  resolveName,
+} from "./names.mjs";
 
-export { answer };
+export { answer, AIRPORT_RADIUS_MILES, editDistance };
 
 /** Numbers arrive as strings from some clients: read them as numbers before the bounds apply. */
-const num = () => z.coerce.number();
+export const num = () => z.coerce.number();
+/** What the data calls each id, for the lookups that take a name: {id: [name, alias...]}. */
+const namesOf = (rows, aliases) =>
+  Object.fromEntries(
+    rows.map((r) => [r.id, [r.name, ...(aliases[r.id] ?? [])]]),
+  );
+/** response_format, with the words people use for it. */
+export const formatSchema = () =>
+  choice(["markdown", "json"], FORMAT_SYNONYMS, [], "markdown");
 
 export const OSM_ATTRIBUTION =
   "Hotel names and locations © OpenStreetMap contributors, available under the Open Database License (ODbL).";
@@ -26,19 +55,52 @@ export const OFF_LEASH = new Set([
 
 export const norm = (s) => (s ?? "").toLowerCase();
 
+// Words of a name or query: lowercase letters and digits, split on everything else, so
+// "Carmel-by-the-Sea" reads as carmel by the sea and "Rosie's" as rosie s.
+const wordsOf = (s) => norm(s).split(/[^a-z0-9]+/).filter(Boolean);
+
+/**
+ * Every word of the query starts a word of the place's name, city, county or brand.
+ * Word starts, not substrings: "Reno" must not find Moreno Valley, while "carm" still
+ * finds Carmel and "motel 6" finds Motel 6.
+ */
 export const matchesText = (p, query) => {
   if (!query) return true;
-  const hay = norm(
+  const hay = wordsOf(
     `${p.name} ${p.city ?? ""} ${p.county ?? ""} ${p.brand ?? ""}`,
   );
-  return norm(query)
-    .split(/\s+/)
-    .filter(Boolean)
-    .every((word) => hay.includes(word));
+  return wordsOf(query).every((word) => hay.some((h) => h.startsWith(word)));
 };
 
-/** The list item for a place: static fields from the snapshot, freshness for today. */
+/**
+ * Seasonal rules on a date (roadmap R-23): the `today` block of a place with
+ * seasonal rules, computed per call from the snapshot's facts.seasons and the
+ * seasons rule's source, or null for a place without any.
+ */
+export function todayFor(p, today) {
+  if (!p.facts?.seasons) return null;
+  const rule = p.rule_records?.find((r) => r.kind === "seasons") ?? {};
+  return todayOf(seasonNow(p, today), rule);
+}
+
+// The citation with the seasonal sentence where the answer starts, after the
+// place's name, as the site writes it (src/lib/provenance.mjs, citation).
+function leadCitation(p, lead) {
+  const head = `${p.name}${p.city ? ` (${p.city}, ${p.state})` : ""}: `;
+  return p.citation.startsWith(head)
+    ? `${head}${lead} ${p.citation.slice(head.length)}`
+    : `${lead} ${p.citation}`;
+}
+
+/**
+ * The list item for a place: static fields from the snapshot, freshness for
+ * today, and for a place with seasonal rules the `today` block, whose
+ * sentence leads answer and citation while a seasonal rule applies or starts
+ * within 14 days.
+ */
 export function summary(p, today, extra = {}) {
+  const seasonal = todayFor(p, today);
+  const lead = seasonal?.sentence ?? null;
   return {
     id: p.id,
     uid: p.uid,
@@ -51,8 +113,9 @@ export function summary(p, today, extra = {}) {
     area: p.area ?? null,
     area_id: p.area_id ?? null,
     status: p.status,
-    answer: p.answer,
-    citation: p.citation,
+    answer: lead ? `${lead} ${p.answer}` : p.answer,
+    citation: lead ? leadCitation(p, lead) : p.citation,
+    ...(seasonal ? { today: seasonal } : {}),
     brand_policy: p.brand_policy,
     confidence: p.confidence,
     confirmed_by: p.confirmed_by,
@@ -78,6 +141,7 @@ export function summaryLine(s) {
     `- ${s.citation}`,
     `  ${s.mile != null ? `Mile ${s.mile.toFixed(1)} · ` : ""}\`${s.id}\`${where ? ` · ${where}` : ""}${s.exit ? ` · ${s.exit}` : ""}${s.distance_miles != null ? ` · ${s.distance_miles} mi` : ""} · freshness ${s.freshness}${s.confirmed_by ? ` · confirmed by the ${s.confirmed_by}` : ""}`,
   ];
+  if (s.closed_now) parts.push(`  ${closureLine(s.closed_now)}`);
   if (s.fee) parts.push(`  Pet fee: ${s.fee}`);
   if (s.reasons?.length) parts.push(`  Notes: ${s.reasons.join(" ")}`);
   return parts.join("\n");
@@ -95,13 +159,81 @@ export const CONFIDENCE = z
   .describe(
     "stated: the place's own source says it; inferred_from_agency: an agency-wide rule; inherited_brand: the chain's policy, not confirmed by this hotel",
   );
+/**
+ * A rest area Caltrans' lane-closure feed reports fully closed right now
+ * (I-5 only; absent when it is open, when no closure is published, or when
+ * the live feed could not be read). Caltrans' own reason and end time.
+ */
+export const ClosedNow = z
+  .looseObject({
+    reason: z.string().describe("Caltrans' own reason, as published"),
+    until: z
+      .string()
+      .nullable()
+      .describe("Caltrans' end time (ISO); null when no end is set"),
+    source: z.literal("Caltrans"),
+    fetched_at: z.string().describe("When the conditions loop read the feed"),
+  })
+  .describe(
+    "Present only when Caltrans reports this rest area fully closed now. Live feed data, not a verified rule: check quickmap.dot.ca.gov",
+  );
+
+const SeasonItem = z.looseObject({
+  rule: z.string().describe("The seasonal rule in plain words"),
+  season: z
+    .string()
+    .describe('When it runs, in the source\'s dates: "July 1 to May 15"'),
+  area: z.string().nullable(),
+  access: z.enum(["yes", "yes_restricted", "no"]).nullable(),
+  leash: z.string().nullable(),
+});
+const Dated = SeasonItem.extend({
+  starts: z.string().describe("First day of this run (YYYY-MM-DD)"),
+  ends: z.string().describe("Last day of this run (YYYY-MM-DD)"),
+});
+export const TodayBlock = z
+  .looseObject({
+    date: z
+      .string()
+      .describe("The date this was computed for: the server's date"),
+    in_season: z
+      .boolean()
+      .nullable()
+      .describe(
+        "true: a seasonal rule is in effect on that date; null: the source gives a season without dates",
+      ),
+    sentence: z
+      .string()
+      .nullable()
+      .describe(
+        "Leads answer and citation while a seasonal rule applies or starts within 14 days; null otherwise",
+      ),
+    in_effect: z.array(Dated.extend({ days_left: z.number() })),
+    starts_soon: z.array(Dated.extend({ in_days: z.number() })),
+    next: Dated.extend({ in_days: z.number() }).nullable(),
+    undated: z
+      .array(SeasonItem)
+      .describe("Seasons the source states without dates: not known to apply"),
+    source_url: z.string().nullable(),
+    publisher: z.string().nullable(),
+    quote: z.string().nullable(),
+    verified_at: z.string().nullable(),
+  })
+  .describe(
+    "Only for a place with seasonal dog rules (plover nesting season, summer beach hours): which applies on the server's date, until when, and which starts next, with the source. Repeat sentence with the answer.",
+  );
 export const PlaceItem = z.looseObject({
   id: z.string(),
   uid: z.string().describe("Stable id that survives a rename"),
   name: z.string(),
   type: z.string(),
   status: z.enum(["yes", "yes_restricted", "no", "varies", "unknown"]),
-  answer: z.string(),
+  answer: z
+    .string()
+    .describe(
+      "The one-line answer; while a seasonal rule applies today it leads with it (see today)",
+    ),
+  today: TodayBlock.optional(),
   citation: z
     .string()
     .describe(
@@ -114,6 +246,7 @@ export const PlaceItem = z.looseObject({
   url: z.string(),
   source_urls: z.array(z.string()),
   record_license: z.string(),
+  closed_now: ClosedNow.optional(),
 });
 export const Envelope = {
   as_of: z.string().describe("Date the data was built (YYYY-MM-DD)"),
@@ -154,6 +287,24 @@ export const OutcomeFields = {
     .array(z.string())
     .optional()
     .describe("Calls that would answer the question, in words"),
+  accepted: z
+    .record(z.string(), z.array(z.string()))
+    .optional()
+    .describe(
+      "With bad_input: each argument that could not be read, with the values it accepts",
+    ),
+  resolved_from: z
+    .record(
+      z.string(),
+      z.looseObject({
+        asked: z.union([z.string(), z.array(z.string())]),
+        used: z.union([z.string(), z.array(z.string())]),
+      }),
+    )
+    .optional()
+    .describe(
+      "Set when a word was read as the value the tool uses: hotel as lodging, NB as north. Each key is the argument; asked is what was sent, used what it was read as",
+    ),
 };
 export const ListOutput = (key, extra = {}) =>
   z.looseObject({
@@ -180,14 +331,13 @@ export const RuleItem = z.looseObject({
 export const FactItem = z.looseObject({ label: z.string(), value: z.string() });
 export const NotStated = z
   .array(z.string())
-  .describe("Expected facts the sources do not state; never guess these");
+  .describe("Expected facts the sources do not state");
 
 // ---- Input schema fragments ----
 
 export function locationSchema(graph) {
   return {
-    state: z
-      .enum(STATES)
+    state: choice(STATES, STATE_SYNONYMS)
       .optional()
       .describe(
         '"CA" or "NV". Also tells apart counties with the same name, such as Humboldt.',
@@ -200,57 +350,56 @@ export function locationSchema(graph) {
       .describe(
         'County name without "County", in California or Nevada, e.g. "Monterey" or "Washoe"',
       ),
-    region: z
-      .enum(graph.regionIds)
+    region: idChoice(graph.regionIds, namesOf(graph.regions, REGION_NAMES))
       .optional()
       .describe(
         "Region id, e.g. central-coast, san-diego or reno-tahoe-nevada",
       ),
-    area: z
-      .string()
-      .min(2)
-      .max(60)
+    area: idText(
+      graph.areaIds,
+      namesOf(graph.areas, AREA_NAMES),
+      z.string().min(2).max(60),
+    )
       .optional()
       .describe(
         `Area id, the name a traveler gives the trip: ${graph.areaIds.join(", ")}`,
       ),
     near: z
-      .strictObject({
-        lat: num()
-          .min(32)
-          .max(42.1)
-          .describe("Latitude in California or Nevada"),
-        lon: num()
-          .min(-124.5)
-          .max(-114)
-          .describe("Longitude in California or Nevada"),
-        radius_miles: num()
-          .min(1)
-          .max(200)
-          .default(25)
-          .describe("Search radius in miles"),
-      })
+      .preprocess(
+        pointInput,
+        z.strictObject({
+          lat: num()
+            .min(32)
+            .max(42.1)
+            .describe("Latitude in California or Nevada"),
+          lon: num()
+            .min(-124.5)
+            .max(-114)
+            .describe("Longitude in California or Nevada"),
+          radius_miles: num()
+            .min(1)
+            .max(200)
+            .default(25)
+            .describe("Search radius in miles"),
+        }),
+      )
       .optional()
       .describe("Limit to places near a point; results are sorted by distance"),
   };
 }
 
 export const pageSchema = {
-  limit: num()
-    .int()
-    .min(1)
-    .max(50)
-    .default(10)
-    .describe("Maximum results to return"),
+  limit: pageSize({ max: 50, fallback: 10 }).describe(
+    "Maximum results to return",
+  ),
   offset: num()
     .int()
     .min(0)
     .default(0)
     .describe("Results to skip, for pagination"),
-  response_format: z
-    .enum(["markdown", "json"])
-    .default("markdown")
-    .describe("'markdown' for readable text, 'json' for structured data"),
+  response_format: formatSchema().describe(
+    "'markdown' for readable text, 'json' for structured data",
+  ),
 };
 
 export const stayCriteriaSchema = {
@@ -317,110 +466,60 @@ export function listResponse(
 export { result };
 
 /**
- * Resolves "Monterey", "Monterey, CA", "Washoe County NV" or "Las Vegas" to a
- * point from the gazetteer: cities first, then counties; a state suffix
- * narrows it. Returns { name, kind, state, county, lat, lon } or null.
+ * Resolves "Monterey", "Monterey, CA", "Washoe County NV", "Las Vegas",
+ * "Koreatown", "SFO" or "Montery" to a point from the gazetteer: the reading
+ * lives in names.mjs (the website runs the same file in the browser). Returns
+ * { name, kind, state, county, lat, lon } or null.
  */
-export function resolveTown(graph, text) {
-  // hyphens and underscores read as spaces: "central-valley" is "Central Valley"
-  const raw = norm(text)
-    .replace(/[.,_-]/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-  if (!raw) return null;
-  let state = null;
-  let name = raw;
-  const m = raw.match(/^(.*?)\s+(ca|nv|california|nevada)$/);
-  if (m) {
-    name = m[1].trim();
-    state = m[2].startsWith("ca") ? "CA" : "NV";
+export function resolveTown(graph, text, options = {}) {
+  return resolveName(gazetteerOf(graph), text, options);
+}
+
+// The gazetteer of a snapshot, built once (keyed by its towns array): the
+// towns, each region's center, and the airport and neighborhood tables below.
+const gazetteers = new WeakMap();
+function gazetteerOf(graph) {
+  let entry = gazetteers.get(graph.towns);
+  if (
+    !entry ||
+    entry.places !== graph.places ||
+    entry.regions !== graph.regions
+  ) {
+    entry = {
+      places: graph.places,
+      regions: graph.regions,
+      gaz: gazetteer({
+        towns: graph.towns,
+        regions: regionCenters(graph.regions ?? [], graph.places ?? []),
+        airports: AIRPORTS,
+        neighborhoods: NEIGHBORHOODS,
+      }),
+    };
+    gazetteers.set(graph.towns, entry);
   }
-  name = name.replace(/\s+county$/, "");
-  const towns = graph.towns.filter((t) => !state || t.state === state);
-  const exact = (kind) =>
-    towns.find((t) => t.kind === kind && norm(t.name) === name);
-  const starts = (kind) =>
-    towns.find((t) => t.kind === kind && norm(t.name).startsWith(name));
-  // Exact names first, areas before cities ("Lake Tahoe" is the trip, not a
-  // town), then an area id, then prefixes.
-  return (
-    exact("area") ??
-    exact("city") ??
-    exact("county") ??
-    towns.find((t) => t.kind === "area" && t.id === name) ??
-    region(graph, name, state) ??
-    neighborhood(name, state) ??
-    starts("area") ??
-    starts("city") ??
-    starts("county") ??
-    typo(towns, name) ??
-    null
-  );
+  return entry.gaz;
 }
 
+let airportsOnly = null;
 /**
- * A region ("Central Valley", "central-valley", "Central Coast") as a scope of
- * its member places, like an area: its center is the middle of those places.
+ * The airport a free-text query names exactly ("LAX", "LAX airport", "Harry
+ * Reid"), as a { lat, lon, radius_miles } point, or null. find_hotels uses it
+ * so "hotels near LAX" works through its `query` words.
  */
-function region(graph, name, state) {
-  const r = (graph.regions ?? []).find(
-    (x) => norm(x.name) === name || x.id.replace(/-/g, " ") === name,
+export function airportPoint(text) {
+  const a = findAirport(
+    (airportsOnly ??= gazetteer({ airports: AIRPORTS })),
+    text,
   );
-  if (!r) return null;
-  const members = graph.places.filter((p) => p.regionId === r.id && p.geo);
-  if (!members.length) return null;
-  if (state && !members.some((p) => p.state === state)) return null;
-  const lat = members.reduce((s, p) => s + p.geo.lat, 0) / members.length;
-  const lon = members.reduce((s, p) => s + p.geo.lon, 0) / members.length;
-  return {
-    name: r.name,
-    kind: "region",
-    id: r.id,
-    county: null,
-    state: members[0].state,
-    lat: Math.round(lat * 1e4) / 1e4,
-    lon: Math.round(lon * 1e4) / 1e4,
-  };
-}
-
-/** A neighborhood of a city we cover, as a search center (NEIGHBORHOODS). */
-function neighborhood(name, state) {
-  // the asked name arrives with hyphens and dots read as spaces; names and aliases are read the same way
-  const key = (s) =>
-    norm(s)
-      .replace(/[.,_-]/g, " ")
-      .replace(/\s+/g, " ")
-      .trim();
-  const n = NEIGHBORHOODS.find(
-    (x) =>
-      (key(x.name) === name || (x.aliases ?? []).some((a) => key(a) === name)) &&
-      (!state || x.state === state),
-  );
-  if (!n) return null;
-  const { aliases: _aliases, ...center } = n;
-  return { ...center, kind: "city" };
-}
-
-/**
- * A one- or two-letter slip in a town or county name ("Montery", "Sacremento"):
- * the closest name, marked corrected_from so the answer can say so. Short
- * words and anything further off are left unmatched.
- */
-function typo(towns, name) {
-  if (name.length < 5) return null;
-  const limit = name.length < 9 ? 1 : 2;
-  let best = null;
-  for (const t of towns) {
-    if (t.kind !== "city" && t.kind !== "county") continue;
-    const d = editDistance(norm(t.name), name, limit);
-    // closest first; at the same distance a city beats a county ("Montery" is the town)
-    const better =
-      !best ||
-      d < best.d ||
-      (d === best.d && t.kind === "city" && best.t.kind !== "city");
-    if (d <= limit && better) best = { t, d };
-  }
-  return best ? { ...best.t, corrected_from: name } : null;
+  return a
+    ? {
+        lat: a.lat,
+        lon: a.lon,
+        radius_miles: a.radius_miles,
+        name: a.name,
+        code: a.code,
+      }
+    : null;
 }
 
 // ---- No dead ends: what to offer when nothing matches ----
@@ -465,6 +564,24 @@ export function suggestTowns(graph, text, n = 5) {
       county: null,
       places: 0,
     })),
+    ...AIRPORTS.flatMap((a) => [
+      {
+        name: a.name,
+        kind: "airport",
+        state: a.state,
+        id: null,
+        county: a.county,
+        places: 0,
+      },
+      {
+        name: a.code,
+        kind: "airport",
+        state: a.state,
+        id: null,
+        county: a.county,
+        places: 0,
+      },
+    ]),
     ...NEIGHBORHOODS.map((x) => ({
       name: x.name,
       kind: "neighborhood",
@@ -655,26 +772,235 @@ export function noMatchText(
   ].join("\n");
 }
 
-/** Levenshtein distance, stopping early once it passes `limit`. */
-export function editDistance(a, b, limit) {
-  if (Math.abs(a.length - b.length) > limit) return limit + 1;
-  let prev = Array.from({ length: b.length + 1 }, (_, j) => j);
-  for (let i = 1; i <= a.length; i++) {
-    const cur = [i];
-    let low = i;
-    for (let j = 1; j <= b.length; j++) {
-      cur[j] = Math.min(
-        prev[j] + 1,
-        cur[j - 1] + 1,
-        prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1),
-      );
-      low = Math.min(low, cur[j]);
-    }
-    if (low > limit) return limit + 1;
-    prev = cur;
-  }
-  return prev[b.length];
-}
+/**
+ * The commercial airports people fly out of with a dog, as search centers
+ * (roadmap R-20). Each center is the middle of the airport's aerodrome area in
+ * OpenStreetMap (aeroway=aerodrome with the IATA code, read through the
+ * Overpass API on 2026-11-09, (c) OpenStreetMap contributors, ODbL). It locates
+ * the airport for scope resolution only; it never makes a rule. The default
+ * radius is AIRPORT_RADIUS_MILES, so "hotels near LAX" means the ones around
+ * the terminals. `aliases` are the other names people say.
+ */
+export const AIRPORTS = [
+  {
+    code: "SFO",
+    name: "San Francisco International Airport",
+    county: "San Mateo",
+    state: "CA",
+    lat: 37.6218,
+    lon: -122.379,
+    aliases: ["san francisco international", "san francisco airport"],
+  },
+  {
+    code: "OAK",
+    name: "Oakland International Airport",
+    county: "Alameda",
+    state: "CA",
+    lat: 37.7223,
+    lon: -122.2253,
+    aliases: [
+      "oakland airport",
+      "oakland san francisco bay airport",
+      "metro oakland",
+    ],
+  },
+  {
+    code: "SJC",
+    name: "San Jose Mineta International Airport",
+    county: "Santa Clara",
+    state: "CA",
+    lat: 37.3632,
+    lon: -121.9281,
+    aliases: [
+      "san jose airport",
+      "san jose international",
+      "mineta san jose",
+      "san jose mineta",
+      "norman y mineta san jose international",
+    ],
+  },
+  {
+    code: "SMF",
+    name: "Sacramento International Airport",
+    county: "Sacramento",
+    state: "CA",
+    lat: 38.693,
+    lon: -121.5931,
+    aliases: ["sacramento airport"],
+  },
+  {
+    code: "LAX",
+    name: "Los Angeles International Airport",
+    county: "Los Angeles",
+    state: "CA",
+    lat: 33.9422,
+    lon: -118.4088,
+    aliases: ["los angeles international", "los angeles airport", "la airport"],
+  },
+  {
+    code: "BUR",
+    name: "Hollywood Burbank Airport",
+    county: "Los Angeles",
+    state: "CA",
+    lat: 34.2036,
+    lon: -118.3596,
+    aliases: ["burbank airport", "bob hope airport", "burbank bob hope"],
+  },
+  {
+    code: "LGB",
+    name: "Long Beach Airport",
+    county: "Los Angeles",
+    state: "CA",
+    lat: 33.8156,
+    lon: -118.151,
+    aliases: ["long beach daugherty field"],
+  },
+  {
+    code: "SNA",
+    name: "John Wayne Airport",
+    county: "Orange",
+    state: "CA",
+    lat: 33.6743,
+    lon: -117.8677,
+    aliases: [
+      "orange county airport",
+      "john wayne orange county",
+      "santa ana airport",
+    ],
+  },
+  {
+    code: "ONT",
+    name: "Ontario International Airport",
+    county: "San Bernardino",
+    state: "CA",
+    lat: 34.0556,
+    lon: -117.6022,
+    aliases: ["ontario airport", "ontario california airport"],
+  },
+  {
+    code: "SAN",
+    name: "San Diego International Airport",
+    county: "San Diego",
+    state: "CA",
+    lat: 32.7339,
+    lon: -117.1914,
+    aliases: [
+      "san diego airport",
+      "san diego international",
+      "lindbergh field",
+    ],
+  },
+  {
+    code: "PSP",
+    name: "Palm Springs International Airport",
+    county: "Riverside",
+    state: "CA",
+    lat: 33.8304,
+    lon: -116.5085,
+    aliases: ["palm springs airport", "palm springs international"],
+  },
+  {
+    code: "FAT",
+    name: "Fresno Yosemite International Airport",
+    county: "Fresno",
+    state: "CA",
+    lat: 36.7759,
+    lon: -119.7183,
+    aliases: [
+      "fresno airport",
+      "fresno yosemite",
+      "fresno yosemite international",
+    ],
+  },
+  {
+    code: "SBA",
+    name: "Santa Barbara Airport",
+    county: "Santa Barbara",
+    state: "CA",
+    lat: 34.427,
+    lon: -119.8423,
+    aliases: [
+      "santa barbara municipal airport",
+      "santa barbara municipal",
+      "santa barbara airport",
+    ],
+  },
+  {
+    code: "SBP",
+    name: "San Luis Obispo County Regional Airport",
+    county: "San Luis Obispo",
+    state: "CA",
+    lat: 35.2375,
+    lon: -120.6415,
+    aliases: [
+      "san luis obispo airport",
+      "slo airport",
+      "san luis obispo regional",
+      "san luis obispo regional airport",
+      "sloairport",
+    ],
+  },
+  {
+    code: "MRY",
+    name: "Monterey Regional Airport",
+    county: "Monterey",
+    state: "CA",
+    lat: 36.5871,
+    lon: -121.8462,
+    aliases: [
+      "monterey airport",
+      "monterey peninsula airport",
+      "monterey regional",
+    ],
+  },
+  {
+    code: "STS",
+    name: "Charles M. Schulz Sonoma County Airport",
+    county: "Sonoma",
+    state: "CA",
+    lat: 38.5105,
+    lon: -122.8132,
+    aliases: [
+      "sonoma county airport",
+      "santa rosa airport",
+      "schulz sonoma county",
+      "charles schulz sonoma county airport",
+    ],
+  },
+  {
+    code: "RNO",
+    name: "Reno-Tahoe International Airport",
+    county: "Washoe",
+    state: "NV",
+    lat: 39.4981,
+    lon: -119.7684,
+    aliases: [
+      "reno airport",
+      "reno tahoe",
+      "reno tahoe airport",
+      "reno tahoe international",
+      "reno international airport",
+    ],
+  },
+  {
+    code: "LAS",
+    name: "Harry Reid International Airport",
+    county: "Clark",
+    state: "NV",
+    lat: 36.0861,
+    lon: -115.1459,
+    aliases: [
+      "harry reid",
+      "mccarran",
+      "mccarran airport",
+      "mccarran international",
+      "mccarran international airport",
+      "las vegas airport",
+      "las vegas international airport",
+      "vegas airport",
+    ],
+  },
+];
 
 /**
  * Neighborhoods people search by name that have no places of their own in the
@@ -683,7 +1009,7 @@ export function editDistance(a, b, limit) {
  * are the other names people say ("Venice Beach", "DTLA", "the Mission");
  * 0.4.1 added the second ring (roadmap R-01) from the misses log.
  */
-const NEIGHBORHOODS = [
+export const NEIGHBORHOODS = [
   {
     name: "Van Nuys",
     county: "Los Angeles",

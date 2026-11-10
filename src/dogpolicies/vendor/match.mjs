@@ -190,6 +190,31 @@ export function feeLine(fee, { nights = 1 } = {}) {
   return `${fee.upTo ? "Up to " : ""}$${fee.amount} for ${span}${fee.note ? ` (${fee.note.replace(/\.$/, "")})` : ""}`;
 }
 
+/**
+ * The fee estimate with its arithmetic spelled out ("2 dogs x 3 nights x $25
+ * per pet per night = $150."), or why it cannot be. fee is the policy's fee
+ * value, est what estimateFee returned for the same stay.
+ */
+export function feeArithmetic(fee, est, { dogs = 1, nights = 1 } = {}) {
+  if (!fee) return "No fee stated in the policy.";
+  if (!est?.known) return est?.note ?? "Not settled by the policy.";
+  if (fee.amount === 0) return "No pet fee.";
+  const perPet = PER_PET.has(fee.basis);
+  const perNight = PER_NIGHT.has(fee.basis);
+  const terms = [
+    perPet && dogs > 1 ? `${dogs} dogs` : null,
+    perNight && nights > 1 ? `${nights} nights` : null,
+    `$${fee.amount} ${fee.basis.replaceAll("_", " ")}`,
+  ].filter(Boolean);
+  const raw = fee.amount * (perPet ? dogs : 1) * (perNight ? nights : 1);
+  let line = `${terms.join(" x ")} = $${raw}`;
+  if (fee.capPerStay != null && raw > fee.capPerStay)
+    line += `, capped at $${fee.capPerStay} per stay = $${est.amount}`;
+  if (est.upTo)
+    line = `Up to ${line.charAt(0).toLowerCase()}${line.slice(1)} (the policy states a maximum)`;
+  return `${line}.`;
+}
+
 /** Great-circle distance in miles. */
 export function miles(a, b) {
   const r = Math.PI / 180;

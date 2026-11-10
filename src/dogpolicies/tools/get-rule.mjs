@@ -19,7 +19,9 @@ export const getRule = (ctx) => ({
   title: "Get one rule by id",
   since: "0.1.0",
   cache: true,
-  description: `One rule (a fee, a leash rule, a weight limit) by its stable id, with its value, the source it cites, the quote, its confidence, the date it was verified and its freshness, plus the place's citation line. Rule ids look like "rul_<place uid>_<kind>" and appear in every place result as rule_records.`,
+  description: `Where does this specific rule come from (a fee, a leash rule, a weight limit): what is the exact quote, the source and the date it was verified?
+Takes one rule id and returns the evidence behind that single fact. Rule ids look like "rul_<place uid>_<kind>" and appear in every place result as rule_records.
+Returns the rule's value, the source it cites with the quote, confidence, verified date, freshness and the place's citation line.`,
   inputSchema: z.strictObject({
     id: z
       .string()
@@ -103,7 +105,7 @@ export const getRule = (ctx) => ({
       place: summary(p, today),
     };
     const lines = [
-      p.citation,
+      data.place.citation,
       "",
       `${r.label}: ${r.text}${r.note ? ` (${r.note})` : ""}`,
       `Confidence: ${r.confidence.replaceAll("_", " ")}. Verified ${r.verifiedAt}; re-check due ${r.reviewDue}; freshness ${r.freshness}.`,

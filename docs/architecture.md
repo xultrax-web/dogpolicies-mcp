@@ -66,7 +66,7 @@ export const myTool = (ctx) => ({
   name: "myserver_do_thing",     // snake_case, server-prefixed, never renamed
   title: "Do the thing",
   description: "...written for a model choosing between tools, with examples",
-  inputSchema: z.strictObject({ ... }),   // strict: unknown fields are rejected
+  inputSchema: z.strictObject({ ... }),   // strict: unknown fields fail it, and the failure is answered (bad_input, decision 111)
   outputSchema: z.looseObject({ ... }),   // loose: fields may be added later
   annotations: READ_ONLY,                 // or WRITE_ONCE
   cache: true,                            // memoize by (data version, args)

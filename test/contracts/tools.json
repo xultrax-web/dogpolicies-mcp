@@ -37,6 +37,7 @@
         "total"
       ],
       "properties": [
+        "accepted",
         "as_of",
         "attribution_text",
         "attribution_url",
@@ -51,6 +52,7 @@
         "offset",
         "outcome",
         "places",
+        "resolved_from",
         "total"
       ]
     },
@@ -90,6 +92,7 @@
         "total"
       ],
       "properties": [
+        "accepted",
         "as_of",
         "attribution_text",
         "attribution_url",
@@ -105,6 +108,7 @@
         "outcome",
         "radius_miles",
         "radius_widened_from",
+        "resolved_from",
         "total"
       ]
     },
@@ -158,12 +162,14 @@
         "verified_at"
       ],
       "properties": [
+        "accepted",
         "answer",
         "as_of",
         "attribution_text",
         "attribution_url",
         "axis",
         "citation",
+        "closed_now",
         "code",
         "confidence",
         "confirmed_by",
@@ -187,6 +193,7 @@
         "source_urls",
         "sources",
         "status",
+        "today",
         "type",
         "uid",
         "url",
@@ -223,6 +230,7 @@
         "rows"
       ],
       "properties": [
+        "accepted",
         "as_of",
         "attribution_text",
         "attribution_url",
@@ -235,6 +243,7 @@
         "next",
         "outcome",
         "places",
+        "resolved_from",
         "rows"
       ]
     },
@@ -262,6 +271,9 @@
         "place",
         "radius_miles",
         "response_format",
+        "save",
+        "start_date",
+        "stay_id",
         "stay_types"
       ]
     },
@@ -280,11 +292,13 @@
         "stays"
       ],
       "properties": [
+        "accepted",
         "as_of",
         "asked",
         "attribution_text",
         "attribution_url",
         "code",
+        "days",
         "did_you_mean",
         "i5",
         "label",
@@ -294,9 +308,13 @@
         "next",
         "outcome",
         "outings",
+        "plan_notes",
+        "plan_stay",
         "radius_miles",
+        "resolved_from",
         "stay_counts",
-        "stays"
+        "stays",
+        "trip_url"
       ]
     },
     "since": "0.2.0",
@@ -344,6 +362,7 @@
         "total"
       ],
       "properties": [
+        "accepted",
         "as_of",
         "attribution_text",
         "attribution_url",
@@ -359,6 +378,7 @@
         "next",
         "offset",
         "outcome",
+        "resolved_from",
         "total"
       ]
     },
@@ -398,6 +418,7 @@
         "verified_at"
       ],
       "properties": [
+        "accepted",
         "answer",
         "as_of",
         "attribution_text",
@@ -448,6 +469,7 @@
         "total"
       ],
       "properties": [
+        "accepted",
         "as_of",
         "attribution_text",
         "attribution_url",
@@ -460,6 +482,7 @@
         "outcome",
         "places",
         "questions",
+        "resolved_from",
         "total"
       ]
     },
@@ -511,6 +534,7 @@
         "total"
       ],
       "properties": [
+        "accepted",
         "as_of",
         "attribution_text",
         "attribution_url",
@@ -526,6 +550,7 @@
         "offset",
         "outcome",
         "paired_stops",
+        "resolved_from",
         "route",
         "start",
         "stops",
@@ -575,6 +600,7 @@
         "window"
       ],
       "properties": [
+        "accepted",
         "as_of",
         "attribution_text",
         "attribution_url",
@@ -588,6 +614,7 @@
         "next",
         "outcome",
         "paired_stops",
+        "resolved_from",
         "stops",
         "strips",
         "total",
@@ -633,6 +660,7 @@
         "window"
       ],
       "properties": [
+        "accepted",
         "as_of",
         "attribution_text",
         "attribution_url",
@@ -649,6 +677,7 @@
         "next",
         "notice",
         "outcome",
+        "resolved_from",
         "signs",
         "source",
         "stale",
@@ -657,6 +686,84 @@
       ]
     },
     "since": "0.3.0",
+    "deprecated": null
+  },
+  "dogpolicies_road_conditions": {
+    "title": "Road conditions now: closures, chains, weather",
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    },
+    "input": {
+      "required": [
+        "route"
+      ],
+      "properties": [
+        "ahead_miles",
+        "direction",
+        "from_mile",
+        "response_format",
+        "route",
+        "to_mile",
+        "town"
+      ]
+    },
+    "output": {
+      "required": [
+        "as_of",
+        "attribution_text",
+        "attribution_url",
+        "chain_controls",
+        "chain_controls_in_effect",
+        "chains_in_effect",
+        "closures",
+        "counts",
+        "feeds_failed",
+        "fetched_at",
+        "license",
+        "live_map",
+        "notice",
+        "road",
+        "route",
+        "signs",
+        "source",
+        "weather",
+        "window"
+      ],
+      "properties": [
+        "accepted",
+        "as_of",
+        "attribution_text",
+        "attribution_url",
+        "chain_controls",
+        "chain_controls_in_effect",
+        "chains_in_effect",
+        "closures",
+        "code",
+        "counts",
+        "did_you_mean",
+        "feeds_failed",
+        "fetched_at",
+        "license",
+        "live_map",
+        "message",
+        "nearest",
+        "next",
+        "notice",
+        "outcome",
+        "resolved_from",
+        "road",
+        "route",
+        "signs",
+        "source",
+        "stale",
+        "weather",
+        "window"
+      ]
+    },
+    "since": "0.5.0",
     "deprecated": null
   },
   "dogpolicies_get_rule": {
@@ -686,6 +793,7 @@
         "rule"
       ],
       "properties": [
+        "accepted",
         "as_of",
         "attribution_text",
         "attribution_url",
@@ -697,6 +805,7 @@
         "next",
         "outcome",
         "place",
+        "resolved_from",
         "rule"
       ]
     },
@@ -739,6 +848,9 @@
         "as_of",
         "attribution_text",
         "attribution_url",
+        "corrections",
+        "corrections_note",
+        "corrections_total",
         "count",
         "events",
         "has_more",
@@ -763,14 +875,18 @@
         "since"
       ],
       "properties": [
+        "from_mile",
         "limit",
         "near",
         "offset",
         "outcome",
         "place",
+        "place_id",
         "radius_miles",
         "response_format",
-        "since"
+        "route",
+        "since",
+        "to_mile"
       ]
     },
     "output": {
@@ -787,10 +903,14 @@
         "total"
       ],
       "properties": [
+        "accepted",
         "as_of",
         "attribution_text",
         "attribution_url",
         "code",
+        "corrections",
+        "corrections_note",
+        "corrections_total",
         "count",
         "did_you_mean",
         "events",
@@ -801,11 +921,72 @@
         "nearest",
         "next",
         "outcome",
+        "page_url",
         "radius_miles",
+        "resolved_from",
+        "rule_changes",
+        "scope_kind",
         "total"
       ]
     },
     "since": "0.2.0",
+    "deprecated": null
+  },
+  "dogpolicies_subscribe_changes": {
+    "title": "Follow rule changes in a feed",
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    },
+    "input": {
+      "required": [],
+      "properties": [
+        "from_mile",
+        "near",
+        "place",
+        "radius_miles",
+        "response_format",
+        "route",
+        "to_mile"
+      ]
+    },
+    "output": {
+      "required": [
+        "as_of",
+        "atom_url",
+        "attribution_text",
+        "attribution_url",
+        "json_url",
+        "last_90_days",
+        "license",
+        "page_url",
+        "scope",
+        "share_text"
+      ],
+      "properties": [
+        "accepted",
+        "as_of",
+        "atom_url",
+        "attribution_text",
+        "attribution_url",
+        "code",
+        "did_you_mean",
+        "json_url",
+        "last_90_days",
+        "license",
+        "message",
+        "nearest",
+        "next",
+        "outcome",
+        "page_url",
+        "resolved_from",
+        "scope",
+        "share_text"
+      ]
+    },
+    "since": "0.5.0",
     "deprecated": null
   },
   "dogpolicies_report_correction": {
@@ -823,6 +1004,7 @@
       ],
       "properties": [
         "contact",
+        "fact",
         "message",
         "place_id",
         "source_url"
@@ -836,6 +1018,7 @@
         "url"
       ],
       "properties": [
+        "accepted",
         "code",
         "did_you_mean",
         "form_url",
@@ -845,7 +1028,10 @@
         "outcome",
         "place_id",
         "report_id",
+        "resolved_from",
         "status",
+        "status_url",
+        "ticket",
         "url"
       ]
     },

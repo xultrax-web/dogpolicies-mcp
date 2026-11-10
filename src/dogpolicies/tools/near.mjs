@@ -12,9 +12,11 @@ import {
   nearestTowns,
   noMatchText,
   summary,
+  formatSchema,
   summaryLine,
 } from "./common.mjs";
 import { resolveScope, scopeAnswer, scopeSchema } from "./scope.mjs";
+import { KIND_SYNONYMS, choiceList, flag } from "./tolerant.mjs";
 
 export const GROUPS = [
   ["beach", "Beaches"],
@@ -25,7 +27,7 @@ export const GROUPS = [
   ["cabins", "Cabins"],
   ["restaurant", "Places to eat and drink"],
   ["rest_area", "Rest areas"],
-  ["stop", "Roadside stops"],
+  ["stop", "Roadside stops and airports"],
 ];
 
 // When nothing sits inside the radius asked for, the search widens to these
@@ -38,9 +40,10 @@ export const near = (ctx) => ({
   title: "What is near a town",
   since: "0.2.0",
   cache: true,
-  description: `Anything for dogs around a town, county or point: everything dog-related nearby, grouped by kind: beaches, parks, trails, hotels, campgrounds, cabins, places to eat and rest areas, each sorted by distance, with the dog rule and citation for each. Answers "what can I do with my dog there?" for a named place.
-
-Takes a town, county, area, region or neighborhood name (no coordinates needed) or a point. Small spelling slips are corrected and labeled. When nothing is inside the radius, the search widens on its own (to 30, 60, then 100 miles) and says so; when the data has nothing near at all, the answer lists the nearest records anyway, so there is always something to offer. A name the data does not know comes back with close matches (did_you_mean) and what to call next, not an error.
+  description: `What can my dog do in or around this town, neighborhood or region: beaches, parks, trails, hotels, campgrounds, cabins, patios and rest areas, nearest first?
+Answers "dog-friendly things in X" questions, grouped by kind. It does not check hotels against a dog's weight or a fee budget.
+Input: place as people say it: a city, county, neighborhood or alias ("Van Nuys", "Koreatown", "Venice Beach", "the Mission", "DTLA"), an area or region ("Lake Tahoe", "East Bay", "Central Valley"), or near={lat, lon}. Small spelling slips ("Montery") are corrected and labeled. If nothing is inside the radius it widens to 30, 60, then 100 miles and says so.
+Each result carries the dog rule, verified date and source URL. An unknown name comes back as an answer with did_you_mean, the nearest towns and next (a larger town or county that is covered).
 
 Examples:
   - "What can my dog do in Carmel?" -> place="Carmel"
@@ -49,25 +52,24 @@ Examples:
   - "Anything dog-friendly within 5 miles of here" -> near={lat:36.6, lon:-121.9}, radius_miles=5`,
   inputSchema: z.strictObject({
     ...scopeSchema,
-    types: z
-      .array(z.enum(GROUPS.map(([t]) => t)))
-      .min(1)
+    types: choiceList(
+      GROUPS.map(([t]) => t),
+      KIND_SYNONYMS,
+    )
       .optional()
       .describe("Kinds to include; all by default"),
-    dogs_allowed_only: z
-      .boolean()
-      .default(true)
-      .describe("Leave out places where dogs are not allowed"),
+    dogs_allowed_only: flag(true).describe(
+      "Leave out places where dogs are not allowed",
+    ),
     per_type: num()
       .int()
       .min(1)
       .max(20)
       .default(5)
       .describe("Nearest results to show per kind"),
-    response_format: z
-      .enum(["markdown", "json"])
-      .default("markdown")
-      .describe("'markdown' for readable text, 'json' for structured data"),
+    response_format: formatSchema().describe(
+      "'markdown' for readable text, 'json' for structured data",
+    ),
   }),
   outputSchema: z.looseObject({
     ...Envelope,
@@ -102,6 +104,7 @@ Examples:
     if (scope.noMatch)
       return scopeAnswer(ctx, scope.noMatch, {
         format,
+        placesOnly: true,
         shape: {
           center: null,
           label: args.place ?? "",

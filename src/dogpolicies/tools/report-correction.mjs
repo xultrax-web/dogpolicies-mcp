@@ -17,11 +17,28 @@ import {
   suggestPlaces,
 } from "./common.mjs";
 
+// What a report is about, from a fixed list; shown on the public ticket (never free text).
+export const FACT_KINDS = [
+  "dogs_allowed",
+  "leash",
+  "fee",
+  "weight_or_size_limit",
+  "number_of_pets",
+  "breed_rule",
+  "hours",
+  "areas",
+  "closed_or_moved",
+  "other",
+];
+
 export const reportCorrection = (ctx) => ({
   name: "dogpolicies_report_correction",
   title: "Report a correction",
   since: "0.1.0",
-  description: `File a correction when a user says a rule on a record is wrong or has changed (a fee went up, a beach closed to dogs, a hotel now takes two pets). The report goes to a person who re-reads the official source; nothing is published automatically and the record does not change until it is verified. Takes the place id, a sentence or two on what is wrong, and optionally the official page the user saw. The only personal detail it accepts is an optional contact the user offers.`,
+  description: `Tell us a rule is wrong: the fee went up, a beach closed to dogs, a hotel now takes two pets.
+For a record the traveler says is wrong or out of date; this is the one tool that writes. The report goes to a person who re-reads the official source, and the record does not change until it is verified: a report is filed, not a fix.
+Inputs: place_id from a result, message (what is wrong, in the traveler's words), optional fact (which kind of fact is wrong), optional source_url of the official page, optional contact if the traveler offers one. No other personal detail is accepted.
+The answer carries a ticket id and a status_url. The ticket's status (filed, then verified or rejected) is public there; what they wrote is not.`,
   inputSchema: z.strictObject({
     place_id: z
       .string()
@@ -33,6 +50,12 @@ export const reportCorrection = (ctx) => ({
       .min(5)
       .max(2000)
       .describe("What is wrong, in the user's words"),
+    fact: z
+      .enum(FACT_KINDS)
+      .optional()
+      .describe(
+        "What kind of rule is wrong, if clear. Shown on the public ticket; the message is not.",
+      ),
     source_url: z
       .string()
       .url()
@@ -56,9 +79,23 @@ export const reportCorrection = (ctx) => ({
       .describe("filed, or not_sent with form_url to file it by hand"),
     url: z.string(),
     form_url: z.string().optional(),
+    ticket: z
+      .string()
+      .nullable()
+      .optional()
+      .describe("Public ticket id (c-xxxxxxxx) once filed; null otherwise"),
+    status_url: z
+      .string()
+      .nullable()
+      .optional()
+      .describe(
+        "Where the ticket's status (filed, verified, rejected) is public",
+      ),
   }),
   annotations: WRITE_ONCE,
-  handler: async ({ place_id, message, source_url, contact }) => {
+  // arguments that fail the schema file nothing, and say so
+  invalidShape: { status: "not_sent", report_id: null },
+  handler: async ({ place_id, message, source_url, contact, fact }) => {
     const p =
       (isSafeId(place_id) ? ctx.graph.placeById.get(place_id) : null) ??
       closestPlace(ctx.graph, place_id);
@@ -132,6 +169,8 @@ export const reportCorrection = (ctx) => ({
       message,
       sourceUrl: source_url,
       contact,
+      fact,
+      placeName: p.name,
     });
     if (!sent.ok)
       // The inbox is down, not the request: the form takes the same report.
@@ -145,18 +184,30 @@ export const reportCorrection = (ctx) => ({
           "Or call again in a few minutes",
         ],
       });
+    const ticket = /^c-[a-z2-7]{8}$/.test(String(sent.ticket ?? ""))
+      ? sent.ticket
+      : null;
+    // The status page exists where the report reached the hosted database.
+    const statusUrl =
+      ticket && sent.public
+        ? `${ctx.graph.site.url}/corrections/status/${ticket}/`
+        : null;
     const data = {
       report_id: sent.id,
+      ticket,
+      status_url: statusUrl,
       place_id: p.id,
       status: "filed",
       url: p.url,
-      note: "A person re-verifies against the official source, usually within a week. The record's verification history shows the result.",
+      note: statusUrl
+        ? "A person re-verifies against the official source, usually within a week. Tell the user the ticket id and status_url: the ticket shows filed, then verified or rejected, with dates. The record's verification history shows the result."
+        : "A person re-verifies against the official source, usually within a week. The record's verification history shows the result.",
     };
     return result(
       data,
       "markdown",
       () =>
-        `Filed correction ${sent.id} for ${p.id}. A person re-verifies it against the official source, usually within a week; the record (${p.url}) does not change until then.`,
+        `Filed correction ${statusUrl ? `${ticket} (report ${sent.id})` : sent.id} for ${p.id}. A person re-verifies it against the official source, usually within a week; the record (${p.url}) does not change until then.${statusUrl ? ` Its status is public at ${statusUrl}: filed now, then verified or rejected.` : ""}`,
     );
   },
 });

@@ -23,6 +23,10 @@ import { stableStringify } from "./result.mjs";
  * @property {boolean} [cache] memoize results by arguments (read-only tools)
  * @property {string} [since] package version the tool first shipped in
  * @property {string} [deprecated] message naming the replacement, when retiring
+ * @property {(issues: object[], args: object, tool: ToolDefinition) => object} [invalidAnswer]
+ *   when present, the SDK does not refuse arguments that fail the schema: the schema runs
+ *   inside the handler, and a failure becomes this answer (decision 111) instead of a
+ *   protocol error. The advertised JSON Schema is the schema's own, unchanged.
  */
 
 /**
@@ -105,41 +109,21 @@ export function createToolServer({
     const description = tool.deprecated
       ? `DEPRECATED: ${tool.deprecated}\n\n${tool.description}`
       : tool.description;
-    const handler = async (args, ctx) => {
-      stats.calls++;
-      const started = performance.now();
-      const counted = onToolCall?.(tool.name, ctx);
-      let output;
-      try {
-        const key = tool.cache
-          ? `${dataVersion()}|${tool.name}|${stableStringify(args)}`
-          : null;
-        output = key ? cache.get(key) : undefined;
-        if (output) stats.cacheHits++;
-        else {
-          output = await tool.handler(args, ctx);
-          if (key && !output.isError) cache.set(key, output);
-        }
-      } catch (error) {
-        output = toErrorResult(error, { log });
-      }
-      if (output.isError) stats.errors++;
-      const ms = performance.now() - started;
-      try {
-        await counted;
-        await onToolResult?.(tool.name, ctx, { args, output, ms });
-      } catch {
-        // counting never fails a call
-      }
-      log?.debug(
-        `${tool.name} ${output.isError ? "error" : "ok"} in ${ms.toFixed(1)} ms`,
-      );
-      return output;
-    };
+    // A tool with invalidAnswer runs its own schema inside wrapToolHandler (decision 111):
+    // the SDK gets the same JSON Schema with a pass-through validator.
+    const lenient = Boolean(tool.invalidAnswer);
+    const handler = wrapToolHandler(tool, {
+      stats,
+      cache,
+      dataVersion,
+      log,
+      onToolCall,
+      onToolResult,
+    });
     const config = {
       title: tool.title,
       description,
-      inputSchema: tool.inputSchema,
+      inputSchema: lenient ? lenientInput(tool.inputSchema) : tool.inputSchema,
       outputSchema: tool.outputSchema,
       // The title also goes in the annotations: directories (Claude's among
       // them) read annotations.title for the listing.
@@ -199,6 +183,160 @@ export function createToolServer({
   }
 
   return Object.assign(server, { toolStats: stats, toolCache: cache });
+}
+
+/**
+ * Runs a tool. A tool with `invalidAnswer` has its schema run here instead of in
+ * the SDK (decision 111), so arguments that fail it get an answer, and a word read
+ * as something else ("hotel" as lodging) is said in `resolved_from`.
+ */
+async function runTool(tool, args, ctx) {
+  if (!tool.invalidAnswer) return tool.handler(args, ctx);
+  const raw = args && typeof args === "object" ? args : {};
+  const checked = await tool.inputSchema["~standard"].validate(raw);
+  if (checked.issues?.length) return tool.invalidAnswer(checked.issues, raw, tool);
+  return withResolved(
+    await tool.handler(checked.value, ctx),
+    resolvedFrom(raw, checked.value),
+  );
+}
+
+/**
+ * The wrapper every tool call goes through, MCP or not: result caching, the
+ * counting hooks, timing, and the error model (a throw becomes an error
+ * result, never a stack). The MCP server registers it as the tool's handler;
+ * the site's HTTP operations (R-26) call it with already-validated arguments,
+ * so both transports run one code path and give one answer.
+ *
+ * @returns {(args: object, ctx?: object) => Promise<object>} the tool result
+ */
+export function wrapToolHandler(
+  tool,
+  {
+    stats = { calls: 0, errors: 0, cacheHits: 0 },
+    cache = new Lru(200),
+    dataVersion = () => "",
+    log,
+    onToolCall,
+    onToolResult,
+  } = {},
+) {
+  return async (args, ctx) => {
+    stats.calls++;
+    const started = performance.now();
+    const counted = onToolCall?.(tool.name, ctx);
+    let output;
+    try {
+      const key = tool.cache
+        ? `${dataVersion()}|${tool.name}|${stableStringify(args)}${
+            // A tool that reads live data says how long its answer holds.
+            tool.cacheTtlMs ? `|${Math.floor(Date.now() / tool.cacheTtlMs)}` : ""
+          }`
+        : null;
+      output = key ? cache.get(key) : undefined;
+      if (output) stats.cacheHits++;
+      else {
+        output = await runTool(tool, args, ctx);
+        if (key && !output.isError) cache.set(key, output);
+      }
+    } catch (error) {
+      output = toErrorResult(error, { log });
+    }
+    if (output.isError) stats.errors++;
+    const ms = performance.now() - started;
+    try {
+      await counted;
+      await onToolResult?.(tool.name, ctx, { args, output, ms });
+    } catch {
+      // counting never fails a call
+    }
+    log?.debug(
+      `${tool.name} ${output.isError ? "error" : "ok"} in ${ms.toFixed(1)} ms`,
+    );
+    return output;
+  };
+}
+
+/**
+ * The same schema for the SDK's eyes (the JSON Schema a client reads) with
+ * validation turned into a pass-through: the registry runs the real schema in
+ * the handler. Not a loophole: nothing reaches a tool unchecked.
+ */
+export function lenientInput(schema) {
+  const std = schema["~standard"];
+  return {
+    "~standard": {
+      version: std.version,
+      vendor: std.vendor,
+      jsonSchema: std.jsonSchema,
+      validate: (value) => ({ value }),
+    },
+  };
+}
+
+// Arguments whose reading is not worth a line in the answer.
+const QUIET = new Set(["response_format"]);
+const plain = (s) =>
+  String(s)
+    .trim()
+    .toLowerCase()
+    .replace(/[\s_-]+/g, " ");
+const words = (x) =>
+  typeof x === "string" ||
+  (Array.isArray(x) && x.every((y) => typeof y === "string"));
+const same = (a, b) =>
+  Array.isArray(a) && Array.isArray(b)
+    ? a.length === b.length && a.every((x, i) => plain(x) === plain(b[i]))
+    : !Array.isArray(a) && !Array.isArray(b) && plain(a) === plain(b);
+
+/**
+ * Which arguments were read as something else: a word mapped to its canonical
+ * value ("hotel" as lodging, "NB" as north). Case, spacing and hyphens alone
+ * are not worth saying; numbers and booleans read from strings are not either.
+ */
+export function resolvedFrom(raw, parsed) {
+  const out = {};
+  for (const [key, asked] of Object.entries(raw)) {
+    if (QUIET.has(key) || !(key in parsed)) continue;
+    const used = parsed[key];
+    if (!words(asked) || !words(used) || same(asked, used)) continue;
+    out[key] = { asked, used };
+  }
+  return Object.keys(out).length ? out : null;
+}
+
+/** The result with `resolved_from` in its data and one line in its text. */
+export function withResolved(output, resolved) {
+  if (!resolved || output.isError || !output.structuredContent) return output;
+  const say = (v) => (Array.isArray(v) ? v.join(", ") : v);
+  const line = `Read ${Object.entries(resolved)
+    .map(([k, r]) => `${k} "${say(r.asked)}" as ${say(r.used)}`)
+    .join("; ")}.`;
+  const structuredContent = {
+    ...output.structuredContent,
+    resolved_from: resolved,
+  };
+  const first = output.content?.[0];
+  let text = first?.text ?? "";
+  if (text.startsWith("{")) {
+    try {
+      text = JSON.stringify(
+        { ...JSON.parse(text), resolved_from: resolved },
+        null,
+        2,
+      );
+    } catch {
+      text += "\n\n" + line;
+    }
+  } else text += "\n\n" + line;
+  return {
+    ...output,
+    structuredContent,
+    content: [
+      { ...first, type: "text", text },
+      ...(output.content ?? []).slice(1),
+    ],
+  };
 }
 
 /** Tool annotations for a pure read. */

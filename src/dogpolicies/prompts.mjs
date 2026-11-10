@@ -8,15 +8,21 @@ import { completable } from "@modelcontextprotocol/server";
 const user = (text) => ({ role: "user", content: { type: "text", text } });
 
 const CITE =
-  "Cite every fact with the record URL and the date it was checked, say when a record is stale, unreadable or a brand policy the hotel has not confirmed, and say 'not stated' when a source does not give a fact instead of guessing.";
+  "Cite every fact with the source URL and the verified date, say when a record is stale, unreadable or a brand policy the hotel has not confirmed, and say 'not stated' when a source does not give a fact instead of guessing. If a tool answers no_match or partial, use its did_you_mean and nearest records and say what was tried; do not repeat the same call.";
 
 export const prompts = (ctx) => {
-  const townNames = () =>
-    ctx.graph.towns.map((t) =>
-      t.kind === "county"
-        ? `${t.name} County, ${t.state}`
-        : `${t.name}, ${t.state}`,
-    );
+  // Carson City is a consolidated city: its county is labeled "Carson City, NV", never
+  // "Carson City County" (the site's countyName(), inlined: the package ships alone),
+  // and the city and county entries then read the same, so each label appears once.
+  const townNames = () => [
+    ...new Set(
+      ctx.graph.towns.map((t) =>
+        t.kind === "county" && t.name !== "Carson City"
+          ? `${t.name} County, ${t.state}`
+          : `${t.name}, ${t.state}`,
+      ),
+    ),
+  ];
   const town = (description) =>
     completable(z.string().min(2).max(80).describe(description), (value) =>
       townNames()
@@ -28,7 +34,7 @@ export const prompts = (ctx) => {
       name: "plan_dog_trip",
       title: "Plan a trip with my dog",
       description:
-        "A stay in a California or Nevada town: where to stay with this dog, what to do, where to eat, with sources",
+        "Where can I stay with my dog, what can we do and where can we eat in this town? Pet fee for the whole stay worked out, with sources",
       argsSchema: {
         destination: town(
           'Town or county, e.g. "Monterey" or "Washoe County, NV"',
@@ -55,7 +61,7 @@ export const prompts = (ctx) => {
       name: "check_hotel_for_dog",
       title: "Will this hotel take my dog?",
       description:
-        "Check one hotel or a town's hotels against a specific dog: weight, count, nights, fee",
+        "Will this hotel, or a hotel in this town, take my dog? Checked against the dog's weight, number of dogs, nights and the fee",
       argsSchema: {
         hotel_or_town: town(
           'A hotel name or a town, e.g. "Motel 6 Fresno" or "Monterey"',
@@ -78,7 +84,7 @@ export const prompts = (ctx) => {
       name: "road_trip_with_dog",
       title: "Road trip stops with my dog",
       description:
-        "Dog-friendly stops along a highway in driving order: rest areas, parks, hotels within budget",
+        "Where can we stop with the dog on this drive? Rest areas, parks and hotels in driving order with miles",
       argsSchema: {
         route: completable(
           z
@@ -112,7 +118,7 @@ export const prompts = (ctx) => {
       name: "drive_i5_with_dog",
       title: "Driving I-5 with my dog",
       description:
-        "The drive on I-5 in California: the next family stops (restrooms and a pet area) and paired exits ahead, with conditions now",
+        "Driving I-5 in California with a dog: the next restroom stops with a pet area, paired exits, and closures or chains right now",
       argsSchema: {
         from: town("Where the drive starts on I-5, e.g. \"Stockton\" or \"Bakersfield\""),
         direction: completable(
@@ -135,7 +141,7 @@ export const prompts = (ctx) => {
       name: "what_can_my_dog_do_here",
       title: "What can my dog do here?",
       description:
-        "Beaches, parks, trails, patios and stays near a town, with the rule for each",
+        "What can my dog do in or near this town or neighborhood? Beaches, parks, trails, patios and stays with the rule for each",
       argsSchema: { place: town("Town or county") },
       build: ({ place }) => [
         user(
@@ -147,7 +153,7 @@ export const prompts = (ctx) => {
       name: "cite_a_rule",
       title: "Cite the rule for a place",
       description:
-        "The official rule for one place with the quoted source text, ready to cite",
+        "What exactly do the rules say for this place, and where is that from? The quoted source text, ready to cite",
       argsSchema: {
         place_id: completable(
           z.string().min(2).max(120).describe("Place id, e.g. carmel-beach"),

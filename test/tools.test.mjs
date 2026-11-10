@@ -21,8 +21,10 @@ const NAMES = [
   "dogpolicies_near",
   "dogpolicies_plan_trip",
   "dogpolicies_report_correction",
+  "dogpolicies_road_conditions",
   "dogpolicies_route_stops",
   "dogpolicies_search_places",
+  "dogpolicies_subscribe_changes",
 ];
 
 test("server: identity, instructions, tool list, annotations, empty resources and prompts", () =>
@@ -152,20 +154,35 @@ test("search_places: pagination is consistent and the text fits the budget", () 
     assert.ok(text(md).length <= 25_000);
   }));
 
-test("search_places: invalid input is rejected before the handler runs", () =>
+test("search_places: input that cannot be used is a bad_input answer, never an error (decision 111)", () =>
   withClient(async (client) => {
     for (const args of [
-      { limit: 0 },
-      { limit: 51 },
       { query: "x" },
       { state: "OR" },
+      { type: "spaceship" },
       { near: { lat: 0, lon: 0 } },
       { nope: 1 },
     ]) {
-      const r = await client
-        .callTool({ name: "dogpolicies_search_places", arguments: args })
-        .catch((e) => ({ isError: true, thrown: e }));
-      assert.ok(r.isError, `rejects ${JSON.stringify(args)}`);
+      const r = await client.callTool({
+        name: "dogpolicies_search_places",
+        arguments: args,
+      });
+      assert.ok(!r.isError, `answers ${JSON.stringify(args)}`);
+      assert.equal(r.structuredContent.outcome, "bad_input");
+      assert.equal(r.structuredContent.code, "invalid");
+      assert.deepEqual(r.structuredContent.places, []);
+      assert.ok(r.structuredContent.next.length);
+    }
+    // a page size is a ceiling: too big or too small is capped, not refused
+    for (const limit of [0, 51, 500]) {
+      const r = await call(client, "dogpolicies_search_places", {
+        limit,
+        response_format: "json",
+      });
+      assert.ok(!r.isError && r.structuredContent.outcome === undefined);
+      assert.ok(
+        r.structuredContent.count <= 50 && r.structuredContent.count >= 1,
+      );
     }
   }));
 
@@ -210,13 +227,11 @@ test("get_place: full record with sources, rule ids, not_stated, quote marked as
       assert.ok(Array.isArray(e.structuredContent.did_you_mean));
       assert.match(text(e), /Try next:/);
     }
-    const long = await client
-      .callTool({
-        name: "dogpolicies_get_place",
-        arguments: { id: "a".repeat(121) },
-      })
-      .catch(() => ({ isError: true }));
-    assert.ok(long.isError, "the schema rejects an id over 120 characters");
+    const long = await call(client, "dogpolicies_get_place", {
+      id: "a".repeat(121),
+    });
+    assert.ok(!long.isError, "an id over 120 characters is an answer");
+    assert.equal(long.structuredContent.outcome, "bad_input");
   }));
 
 test("get_place: an OpenStreetMap hotel carries the ODbL attribution", () =>
@@ -483,13 +498,14 @@ test("changes_since: events newest first, outcome filter, rule changes, paging",
       since: "2099-01-01",
     });
     assert.equal(future.structuredContent.total, 0);
-    const bad = await client
-      .callTool({
-        name: "dogpolicies_changes_since",
-        arguments: { since: "yesterday" },
-      })
-      .catch(() => ({ isError: true }));
-    assert.ok(bad.isError);
+    const bad = await call(client, "dogpolicies_changes_since", {
+      since: "yesterday",
+    });
+    assert.ok(!bad.isError);
+    assert.equal(bad.structuredContent.outcome, "bad_input");
+    assert.deepEqual(bad.structuredContent.accepted?.since ?? ["YYYY-MM-DD"], [
+      "YYYY-MM-DD",
+    ]);
   }));
 
 test("report_correction (offline): validates the place, never sends, returns the web form URL", () =>
@@ -516,13 +532,13 @@ test("report_correction (offline): validates the place, never sends, returns the
     assert.equal(e.structuredContent.outcome, "bad_input");
     assert.equal(e.structuredContent.status, "not_sent");
     assert.equal(e.structuredContent.report_id, null);
-    const short = await client
-      .callTool({
-        name: "dogpolicies_report_correction",
-        arguments: { place_id: "carmel-beach", message: "hi" },
-      })
-      .catch(() => ({ isError: true }));
-    assert.ok(short.isError);
+    const short = await call(client, "dogpolicies_report_correction", {
+      place_id: "carmel-beach",
+      message: "hi",
+    });
+    assert.ok(!short.isError);
+    assert.equal(short.structuredContent.outcome, "bad_input");
+    assert.equal(short.structuredContent.status, "not_sent");
   }));
 
 test("determinism: the same call gives byte-identical text, and the cache serves the repeat", () =>
@@ -586,7 +602,11 @@ test("near: neighborhoods, regions, hyphens and small typos resolve; nonsense do
     ]) {
       const r = await call(asked);
       assert.ok(!r.isError, asked);
-      assert.notEqual(r.structuredContent.outcome, "no_match", `${asked} resolves`);
+      assert.notEqual(
+        r.structuredContent.outcome,
+        "no_match",
+        `${asked} resolves`,
+      );
       assert.match(r.structuredContent.label, expected, asked);
     }
     const junk = await call("zzyzx test town");
@@ -596,4 +616,89 @@ test("near: neighborhoods, regions, hyphens and small typos resolve; nonsense do
     assert.equal(junk.structuredContent.center, null);
     assert.equal(junk.structuredContent.total, 0);
     assert.ok(junk.structuredContent.next.length > 0, "says what to call next");
+  }));
+
+test("airports: codes, names and the names people say resolve as places, with a 5 mile default radius", () =>
+  withClient(async (client) => {
+    const near = (place, extra = {}) =>
+      client.callTool({
+        name: "dogpolicies_near",
+        arguments: { place, ...extra },
+      });
+    for (const [asked, label] of [
+      ["SFO", /San Francisco International Airport \(SFO\), CA/],
+      ["sfo airport", /\(SFO\)/],
+      ["San Francisco International", /\(SFO\)/],
+      ["LAX airport", /Los Angeles International Airport \(LAX\)/],
+      ["lax", /\(LAX\)/],
+      ["Harry Reid", /Harry Reid International Airport \(LAS\), NV/],
+      ["McCarran", /\(LAS\)/],
+      ["Reno-Tahoe", /Reno-Tahoe International Airport \(RNO\), NV/],
+      ["john wayne airport", /\(SNA\)/],
+      ["Oakland Airport", /\(OAK\)/],
+      ["SJC", /\(SJC\)/],
+      ["sacramento airport", /\(SMF\)/],
+      ["BUR", /\(BUR\)/],
+      ["LGB", /\(LGB\)/],
+      ["ONT", /\(ONT\)/],
+      ["san diego airport", /\(SAN\)/],
+      ["PSP", /\(PSP\)/],
+      ["FAT", /\(FAT\)/],
+      ["SBA", /\(SBA\)/],
+      ["SBP", /\(SBP\)/],
+      ["MRY", /\(MRY\)/],
+      ["STS", /\(STS\)/],
+    ]) {
+      const r = await near(asked);
+      assert.ok(!r.isError, asked);
+      assert.notEqual(r.structuredContent.outcome, "no_match", `${asked} resolves`);
+      assert.match(r.structuredContent.label, label, asked);
+    }
+    // the airport is a point with its own radius; an explicit radius wins
+    const sfo = await near("SFO");
+    assert.equal(sfo.structuredContent.radius_miles, 5);
+    const wide = await near("SFO", { radius_miles: 20 });
+    assert.equal(wide.structuredContent.radius_miles, 20);
+    // a plain town keeps the 15 mile default
+    assert.equal((await near("Monterey")).structuredContent.radius_miles, 15);
+    // an airport's own relief-area record is found around it
+    const lax = await near("SFO");
+    assert.match(text(lax), /International Airport \(SFO\)|pet relief/i);
+    // a slip in a code is an answer with the airport offered, not an error
+    const slip = await near("SFP");
+    assert.ok(!slip.isError, "a slipped code is an answer");
+    assert.ok(
+      slip.structuredContent.did_you_mean.some((d) => d.name === "SFO"),
+      "SFO is offered for SFP",
+    );
+  }));
+
+test("airports: find_hotels and plan_trip take an airport, and the relief-area records are in the data", () =>
+  withClient(async (client) => {
+    const hotels = await call(client, "dogpolicies_find_hotels", {
+      query: "LAX",
+      dogs: 1,
+    });
+    assert.ok(!hotels.isError);
+    const found = hotels.structuredContent.hotels ?? [];
+    assert.ok(found.length > 0, "hotels around LAX");
+    assert.ok(
+      found.every((h) => h.distance_miles <= 5),
+      "all within the airport's 5 miles",
+    );
+    const trip = await call(client, "dogpolicies_plan_trip", {
+      place: "San Diego airport",
+    });
+    assert.ok(!trip.isError);
+    assert.match(trip.structuredContent.label, /\(SAN\)/);
+    assert.equal(trip.structuredContent.radius_miles, 5);
+    const sfo = await call(client, "dogpolicies_search_places", {
+      query: "San Francisco International Airport",
+    });
+    assert.ok(
+      (sfo.structuredContent.places ?? []).some((p) =>
+        /International Airport/.test(p.name),
+      ),
+      "SFO's relief-area record is found by name",
+    );
   }));

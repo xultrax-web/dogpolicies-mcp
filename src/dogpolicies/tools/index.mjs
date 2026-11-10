@@ -15,8 +15,17 @@ import { near } from "./near.mjs";
 import { planTrip } from "./plan-trip.mjs";
 import { comparePlaces } from "./compare-places.mjs";
 import { changesNear } from "./changes-near.mjs";
+import { subscribeChanges } from "./subscribe-changes.mjs";
 import { i5Corridor } from "./i5-corridor.mjs";
 import { i5Conditions } from "./i5-conditions.mjs";
+import { roadConditions } from "./road-conditions.mjs";
+import { invalidInput } from "./invalid.mjs";
+
+// Every tool answers arguments it cannot use instead of refusing them (decision 111).
+const tolerant = (make) => (ctx) => ({
+  ...make(ctx),
+  invalidAnswer: invalidInput(ctx),
+});
 
 export const tools = [
   searchPlaces,
@@ -30,8 +39,10 @@ export const tools = [
   routeStops,
   i5Corridor,
   i5Conditions,
+  roadConditions,
   getRule,
   changesSince,
   changesNear,
+  subscribeChanges,
   reportCorrection,
-];
+].map(tolerant);

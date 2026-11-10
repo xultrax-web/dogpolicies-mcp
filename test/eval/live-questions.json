@@ -1,0 +1,913 @@
+[
+  {
+    "id": "point-lobos",
+    "group": "existing",
+    "question": "Can I bring my dog to Point Lobos?",
+    "expect_tools": ["dogpolicies_search_places", "dogpolicies_get_place"],
+    "expect_outcome": "answered",
+    "must_mention": "Point Lobos",
+    "probe": {
+      "tool": "dogpolicies_search_places",
+      "arguments": {
+        "query": "Point Lobos"
+      }
+    }
+  },
+  {
+    "id": "sd-offleash-beach",
+    "group": "san-diego",
+    "question": "Where can my dog run off leash on a beach near San Diego?",
+    "expect_tools": ["dogpolicies_search_places", "dogpolicies_near"],
+    "expect_outcome": "answered",
+    "must_mention": "Ocean Beach",
+    "probe": {
+      "tool": "dogpolicies_search_places",
+      "arguments": {
+        "type": "beach",
+        "off_leash": true,
+        "near": {
+          "lat": 32.72,
+          "lon": -117.16,
+          "radius_miles": 25
+        }
+      }
+    }
+  },
+  {
+    "id": "marin-parks",
+    "group": "existing",
+    "question": "Which state parks in Marin County allow dogs?",
+    "expect_tools": ["dogpolicies_search_places"],
+    "expect_outcome": "answered",
+    "must_mention": "Marin",
+    "probe": {
+      "tool": "dogpolicies_search_places",
+      "arguments": {
+        "type": "park",
+        "county": "Marin",
+        "dogs_allowed": true
+      }
+    }
+  },
+  {
+    "id": "tahoe-nv-beaches",
+    "group": "tahoe",
+    "question": "Are there dog-friendly beaches at Lake Tahoe on the Nevada side?",
+    "expect_tools": ["dogpolicies_search_places", "dogpolicies_near"],
+    "expect_outcome": "answered",
+    "must_mention": "Nevada",
+    "probe": {
+      "tool": "dogpolicies_search_places",
+      "arguments": {
+        "type": "beach",
+        "state": "NV",
+        "dogs_allowed": true
+      }
+    }
+  },
+  {
+    "id": "vegas-offleash-parks",
+    "group": "las-vegas",
+    "question": "Off-leash dog parks in Las Vegas",
+    "expect_tools": ["dogpolicies_search_places", "dogpolicies_near"],
+    "expect_outcome": "answered",
+    "must_mention": "Nevada",
+    "probe": {
+      "tool": "dogpolicies_search_places",
+      "arguments": {
+        "type": "park",
+        "off_leash": true,
+        "county": "Clark",
+        "state": "NV"
+      }
+    }
+  },
+  {
+    "id": "carmel-beach-rules",
+    "group": "carmel",
+    "question": "Full rules and sources for Carmel Beach",
+    "expect_tools": ["dogpolicies_get_place", "dogpolicies_search_places"],
+    "expect_outcome": "answered",
+    "must_mention": "Carmel Beach",
+    "probe": {
+      "tool": "dogpolicies_get_place",
+      "arguments": {
+        "id": "carmel-beach"
+      }
+    }
+  },
+  {
+    "id": "monterey-lab-hotel",
+    "group": "hotels",
+    "question": "Will a Monterey hotel take my 70 lb Lab for under $50 a night?",
+    "expect_tools": ["dogpolicies_find_hotels", "dogpolicies_plan_trip"],
+    "expect_outcome": "answered",
+    "probe": {
+      "tool": "dogpolicies_find_hotels",
+      "arguments": {
+        "county": "Monterey",
+        "dog_weight_lb": 70,
+        "max_total_fee": 50
+      }
+    }
+  },
+  {
+    "id": "palm-springs-2dogs",
+    "group": "hotels",
+    "question": "Two dogs, three nights near Palm Springs: which hotels and what will the pet fee be?",
+    "expect_tools": ["dogpolicies_find_hotels", "dogpolicies_plan_trip"],
+    "expect_outcome": "answered",
+    "must_mention": "Pet fee",
+    "probe": {
+      "tool": "dogpolicies_find_hotels",
+      "arguments": {
+        "near": {
+          "lat": 33.83,
+          "lon": -116.55
+        },
+        "dogs": 2,
+        "nights": 3
+      }
+    }
+  },
+  {
+    "id": "motel6-fresno",
+    "group": "hotels",
+    "question": "Is the Motel 6 in Fresno dog friendly?",
+    "expect_tools": [
+      "dogpolicies_find_hotels",
+      "dogpolicies_get_brand_policy",
+      "dogpolicies_search_places"
+    ],
+    "expect_outcome": "answered",
+    "must_mention": "Motel 6",
+    "probe": {
+      "tool": "dogpolicies_find_hotels",
+      "arguments": {
+        "query": "Motel 6 Fresno"
+      }
+    }
+  },
+  {
+    "id": "motel6-policy",
+    "group": "hotels",
+    "question": "What is Motel 6's pet policy?",
+    "expect_tools": ["dogpolicies_get_brand_policy", "dogpolicies_find_hotels"],
+    "expect_outcome": "answered",
+    "must_mention": "Motel 6",
+    "probe": {
+      "tool": "dogpolicies_get_brand_policy",
+      "arguments": {
+        "brand": "motel-6"
+      }
+    }
+  },
+  {
+    "id": "kimpton-policy",
+    "group": "hotels",
+    "question": "Does Kimpton charge a pet fee and is there a weight limit?",
+    "expect_tools": ["dogpolicies_get_brand_policy", "dogpolicies_find_hotels"],
+    "expect_outcome": "answered",
+    "must_mention": "Kimpton",
+    "probe": {
+      "tool": "dogpolicies_get_brand_policy",
+      "arguments": {
+        "brand": "Kimpton"
+      }
+    }
+  },
+  {
+    "id": "national-parks-ca",
+    "group": "existing",
+    "question": "Which California national parks allow dogs?",
+    "expect_tools": ["dogpolicies_browse_answers", "dogpolicies_search_places"],
+    "expect_outcome": "answered",
+    "probe": {
+      "tool": "dogpolicies_browse_answers",
+      "arguments": {}
+    }
+  },
+  {
+    "id": "offleash-beaches-ca",
+    "group": "existing",
+    "question": "List the off-leash dog beaches in California",
+    "expect_tools": ["dogpolicies_browse_answers", "dogpolicies_search_places"],
+    "expect_outcome": "answered",
+    "probe": {
+      "tool": "dogpolicies_browse_answers",
+      "arguments": {
+        "slug": "off-leash-dog-beaches-california"
+      }
+    }
+  },
+  {
+    "id": "i5-north-from-la",
+    "group": "thanksgiving",
+    "question": "Driving north on I-5 from Los Angeles with a 70 lb dog, where can we stop?",
+    "expect_tools": ["dogpolicies_route_stops", "dogpolicies_i5_corridor"],
+    "expect_outcome": "answered",
+    "probe": {
+      "tool": "dogpolicies_route_stops",
+      "arguments": {
+        "near": {
+          "lat": 34.05,
+          "lon": -118.24
+        },
+        "direction": "north",
+        "dog_weight_lb": 70
+      }
+    }
+  },
+  {
+    "id": "grapevine-pet-areas",
+    "group": "thanksgiving",
+    "question": "Pet areas at rest stops on the Grapevine",
+    "expect_tools": [
+      "dogpolicies_route_stops",
+      "dogpolicies_i5_corridor",
+      "dogpolicies_search_places"
+    ],
+    "expect_outcome": "answered",
+    "probe": {
+      "tool": "dogpolicies_route_stops",
+      "arguments": {
+        "from_mile": 170,
+        "to_mile": 222,
+        "kinds": ["rest_area", "park"]
+      }
+    }
+  },
+  {
+    "id": "i80-reno-east",
+    "group": "existing",
+    "question": "Heading east on I-80 from Reno with a dog, where can we stop in Nevada?",
+    "expect_tools": ["dogpolicies_route_stops"],
+    "expect_outcome": "answered",
+    "probe": {
+      "tool": "dogpolicies_route_stops",
+      "arguments": {
+        "route": "i-80-nevada",
+        "near": {
+          "lat": 39.53,
+          "lon": -119.81
+        },
+        "direction": "east"
+      }
+    }
+  },
+  {
+    "id": "rule-source",
+    "group": "existing",
+    "question": "Show me the source for the dogs-allowed rule rul_jncvtnrpgcw2vjge_dogsallowed",
+    "expect_tools": ["dogpolicies_get_rule"],
+    "expect_outcome": "answered",
+    "probe": {
+      "tool": "dogpolicies_get_rule",
+      "arguments": {
+        "id": "rul_jncvtnrpgcw2vjge_dogsallowed"
+      }
+    }
+  },
+  {
+    "id": "changes-since-oct",
+    "group": "changes",
+    "question": "What has changed in the data since October 1?",
+    "expect_tools": ["dogpolicies_changes_since"],
+    "expect_outcome": "answered",
+    "probe": {
+      "tool": "dogpolicies_changes_since",
+      "arguments": {
+        "since": "2026-10-01"
+      }
+    }
+  },
+  {
+    "id": "changes-this-year",
+    "group": "changes",
+    "question": "Which records were marked changed this year?",
+    "expect_tools": ["dogpolicies_changes_since"],
+    "expect_outcome": "answered",
+    "probe": {
+      "tool": "dogpolicies_changes_since",
+      "arguments": {
+        "since": "2026-01-01",
+        "outcome": "changed"
+      }
+    }
+  },
+  {
+    "id": "correction-hotel-fee",
+    "group": "correction",
+    "question": "That fee is wrong, the hotel now charges $75; report it",
+    "expect_tools": ["dogpolicies_report_correction"],
+    "expect_outcome": "answered",
+    "dry": true,
+    "probe": {
+      "tool": "dogpolicies_report_correction",
+      "arguments": {
+        "place_id": "carmel-beach",
+        "message": "Eval dry run: the fee is wrong, the hotel now charges $75."
+      }
+    }
+  },
+  {
+    "id": "carmel-things",
+    "group": "carmel",
+    "question": "What can my dog do in Carmel?",
+    "expect_tools": ["dogpolicies_near", "dogpolicies_search_places"],
+    "expect_outcome": "answered",
+    "probe": {
+      "tool": "dogpolicies_near",
+      "arguments": {
+        "place": "Carmel"
+      }
+    }
+  },
+  {
+    "id": "south-tahoe-5mi",
+    "group": "tahoe",
+    "question": "Dog-friendly things within 5 miles of South Lake Tahoe",
+    "expect_tools": ["dogpolicies_near", "dogpolicies_search_places"],
+    "expect_outcome": "answered",
+    "probe": {
+      "tool": "dogpolicies_near",
+      "arguments": {
+        "place": "South Lake Tahoe",
+        "radius_miles": 5
+      }
+    }
+  },
+  {
+    "id": "washoe-near",
+    "group": "existing",
+    "question": "Anything for dogs around Washoe County, Nevada?",
+    "expect_tools": ["dogpolicies_near", "dogpolicies_search_places"],
+    "expect_outcome": "answered",
+    "probe": {
+      "tool": "dogpolicies_near",
+      "arguments": {
+        "place": "Washoe County, NV",
+        "radius_miles": 40
+      }
+    }
+  },
+  {
+    "id": "monterey-3-nights",
+    "group": "hotels",
+    "question": "Plan three nights in Monterey with our 70 lb Lab, pet fees under $150",
+    "expect_tools": ["dogpolicies_plan_trip", "dogpolicies_find_hotels"],
+    "expect_outcome": "answered",
+    "probe": {
+      "tool": "dogpolicies_plan_trip",
+      "arguments": {
+        "place": "Monterey",
+        "dog_weight_lb": 70,
+        "nights": 3,
+        "max_total_fee": 150
+      }
+    }
+  },
+  {
+    "id": "alameda-weekend",
+    "group": "existing",
+    "question": "A weekend trip to Alameda with two small dogs: hotel, beach and a patio",
+    "expect_tools": ["dogpolicies_plan_trip", "dogpolicies_near"],
+    "expect_outcome": "answered",
+    "probe": {
+      "tool": "dogpolicies_plan_trip",
+      "arguments": {
+        "place": "Alameda",
+        "dogs": 2,
+        "nights": 2
+      }
+    }
+  },
+  {
+    "id": "mammoth-camping",
+    "group": "existing",
+    "question": "Camping near Mammoth Lakes with a dog",
+    "expect_tools": ["dogpolicies_plan_trip", "dogpolicies_search_places"],
+    "expect_outcome": "answered",
+    "probe": {
+      "tool": "dogpolicies_plan_trip",
+      "arguments": {
+        "place": "Mono County",
+        "stay_types": ["campground", "cabins"],
+        "radius_miles": 40
+      }
+    }
+  },
+  {
+    "id": "compare-carmel-asilomar",
+    "group": "compare",
+    "question": "Compare Carmel Beach with Asilomar State Beach for my dog",
+    "expect_tools": ["dogpolicies_compare_places"],
+    "expect_outcome": "answered",
+    "must_mention": "Asilomar",
+    "probe": {
+      "tool": "dogpolicies_compare_places",
+      "arguments": {
+        "ids": ["carmel-beach", "asilomar-state-beach"]
+      }
+    }
+  },
+  {
+    "id": "compare-carmel-river",
+    "group": "compare",
+    "question": "Which of these two is better for a dog: carmel-beach or carmel-river-state-beach?",
+    "expect_tools": ["dogpolicies_compare_places"],
+    "expect_outcome": "answered",
+    "probe": {
+      "tool": "dogpolicies_compare_places",
+      "arguments": {
+        "ids": ["carmel-beach", "carmel-river-state-beach"]
+      }
+    }
+  },
+  {
+    "id": "changes-alameda",
+    "group": "changes",
+    "question": "Has anything changed around Alameda since September?",
+    "expect_tools": ["dogpolicies_changes_near", "dogpolicies_changes_since"],
+    "expect_outcome": "answered",
+    "probe": {
+      "tool": "dogpolicies_changes_near",
+      "arguments": {
+        "place": "Alameda",
+        "since": "2026-09-01"
+      }
+    }
+  },
+  {
+    "id": "changes-tahoe",
+    "group": "changes",
+    "question": "Any rule changes near Lake Tahoe this year?",
+    "expect_tools": ["dogpolicies_changes_near", "dogpolicies_changes_since"],
+    "expect_outcome": "answered",
+    "probe": {
+      "tool": "dogpolicies_changes_near",
+      "arguments": {
+        "place": "South Lake Tahoe",
+        "since": "2026-01-01",
+        "radius_miles": 30
+      }
+    }
+  },
+  {
+    "id": "june-lake-cabins",
+    "group": "existing",
+    "question": "Dog-friendly cabins in June Lake",
+    "expect_tools": [
+      "dogpolicies_search_places",
+      "dogpolicies_find_hotels",
+      "dogpolicies_near"
+    ],
+    "expect_outcome": "answered",
+    "probe": {
+      "tool": "dogpolicies_search_places",
+      "arguments": {
+        "query": "June Lake cabins"
+      }
+    },
+    "must_mention": "June Lake"
+  },
+  {
+    "id": "fresno-rv",
+    "group": "existing",
+    "question": "RV parks in Fresno County that take dogs",
+    "expect_tools": ["dogpolicies_search_places"],
+    "expect_outcome": "answered",
+    "probe": {
+      "tool": "dogpolicies_search_places",
+      "arguments": {
+        "type": "RV park",
+        "county": "Fresno",
+        "dogs_allowed": true
+      }
+    }
+  },
+  {
+    "id": "alameda-patios",
+    "group": "existing",
+    "question": "Restaurants with a dog-friendly patio in Alameda",
+    "expect_tools": ["dogpolicies_search_places", "dogpolicies_near"],
+    "expect_outcome": "answered",
+    "probe": {
+      "tool": "dogpolicies_search_places",
+      "arguments": {
+        "query": "patio restaurant Alameda"
+      }
+    }
+  },
+  {
+    "id": "east-bay-things",
+    "group": "existing",
+    "question": "What can my dog do in the East Bay?",
+    "expect_tools": ["dogpolicies_near"],
+    "expect_outcome": "answered",
+    "probe": {
+      "tool": "dogpolicies_near",
+      "arguments": {
+        "place": "East Bay"
+      }
+    }
+  },
+  {
+    "id": "big-sur",
+    "group": "existing",
+    "question": "Dog-friendly places in Big Sur",
+    "expect_tools": ["dogpolicies_search_places", "dogpolicies_near"],
+    "expect_outcome": "answered",
+    "probe": {
+      "tool": "dogpolicies_search_places",
+      "arguments": {
+        "query": "Big Sur"
+      }
+    },
+    "must_mention": "Big Sur"
+  },
+  {
+    "id": "compare-three-one-unknown",
+    "group": "compare",
+    "question": "Compare Carmel Beach, Asilomar and Atlantis Dog Beach for my dog",
+    "expect_tools": ["dogpolicies_compare_places"],
+    "expect_outcome": "partial",
+    "probe": {
+      "tool": "dogpolicies_compare_places",
+      "arguments": {
+        "ids": ["carmel-beach", "asilomar-state-beach", "atlantis-dog-beach"]
+      }
+    }
+  },
+  {
+    "id": "van-nuys",
+    "group": "misses",
+    "question": "Where can I take my dog in Van Nuys?",
+    "expect_tools": ["dogpolicies_near", "dogpolicies_search_places"],
+    "expect_outcome": "answered",
+    "probe": {
+      "tool": "dogpolicies_near",
+      "arguments": {
+        "place": "Van Nuys"
+      }
+    },
+    "must_mention": "Van Nuys"
+  },
+  {
+    "id": "central-valley",
+    "group": "misses",
+    "question": "Dog-friendly stops in the Central Valley",
+    "expect_tools": ["dogpolicies_near", "dogpolicies_search_places"],
+    "expect_outcome": "answered",
+    "probe": {
+      "tool": "dogpolicies_near",
+      "arguments": {
+        "place": "Central Valley"
+      }
+    }
+  },
+  {
+    "id": "montery-typo",
+    "group": "misses",
+    "question": "dog friendly beaches in Montery",
+    "expect_tools": ["dogpolicies_near", "dogpolicies_search_places"],
+    "expect_outcome": "answered",
+    "probe": {
+      "tool": "dogpolicies_near",
+      "arguments": {
+        "place": "Montery"
+      }
+    },
+    "must_mention": "Monterey"
+  },
+  {
+    "id": "koreatown",
+    "group": "misses",
+    "question": "Dog parks near Koreatown in Los Angeles",
+    "expect_tools": ["dogpolicies_near", "dogpolicies_search_places"],
+    "expect_outcome": "answered",
+    "probe": {
+      "tool": "dogpolicies_near",
+      "arguments": {
+        "place": "Koreatown"
+      }
+    }
+  },
+  {
+    "id": "venice-beach",
+    "group": "misses",
+    "question": "Can my dog go on Venice Beach?",
+    "expect_tools": [
+      "dogpolicies_near",
+      "dogpolicies_search_places",
+      "dogpolicies_get_place"
+    ],
+    "expect_outcome": "answered",
+    "probe": {
+      "tool": "dogpolicies_near",
+      "arguments": {
+        "place": "Venice Beach"
+      }
+    }
+  },
+  {
+    "id": "the-mission",
+    "group": "misses",
+    "question": "Dog-friendly spots in the Mission, San Francisco",
+    "expect_tools": ["dogpolicies_near", "dogpolicies_search_places"],
+    "expect_outcome": "answered",
+    "probe": {
+      "tool": "dogpolicies_near",
+      "arguments": {
+        "place": "the Mission"
+      }
+    }
+  },
+  {
+    "id": "dtla",
+    "group": "misses",
+    "question": "Where can I walk my dog in DTLA?",
+    "expect_tools": ["dogpolicies_near", "dogpolicies_search_places"],
+    "expect_outcome": "answered",
+    "probe": {
+      "tool": "dogpolicies_near",
+      "arguments": {
+        "place": "DTLA"
+      }
+    }
+  },
+  {
+    "id": "unknown-town",
+    "group": "misses",
+    "question": "Dog parks in Zzyzx Springs",
+    "expect_tools": ["dogpolicies_near", "dogpolicies_search_places"],
+    "expect_outcome": "no_match",
+    "probe": {
+      "tool": "dogpolicies_near",
+      "arguments": {
+        "place": "zzyzx test town"
+      }
+    }
+  },
+  {
+    "id": "grapevine-north-parks",
+    "group": "thanksgiving",
+    "question": "Heading north over the Grapevine on Thanksgiving: any parks to let the dog out?",
+    "expect_tools": ["dogpolicies_route_stops", "dogpolicies_i5_corridor"],
+    "expect_outcome": "answered",
+    "probe": {
+      "tool": "dogpolicies_route_stops",
+      "arguments": {
+        "from_mile": 200,
+        "to_mile": 222,
+        "kinds": ["dog parks"],
+        "direction": "northbound"
+      }
+    }
+  },
+  {
+    "id": "grapevine-south",
+    "group": "thanksgiving",
+    "question": "Driving south down the Grapevine into LA with a dog, where can we stop?",
+    "expect_tools": ["dogpolicies_route_stops", "dogpolicies_i5_corridor"],
+    "expect_outcome": "answered",
+    "probe": {
+      "tool": "dogpolicies_route_stops",
+      "arguments": {
+        "from_mile": 170,
+        "to_mile": 222,
+        "direction": "south"
+      }
+    }
+  },
+  {
+    "id": "kettleman-city",
+    "group": "thanksgiving",
+    "question": "Where can my dog stretch near Kettleman City on I-5?",
+    "expect_tools": [
+      "dogpolicies_route_stops",
+      "dogpolicies_i5_corridor",
+      "dogpolicies_near"
+    ],
+    "expect_outcome": "answered",
+    "probe": {
+      "tool": "dogpolicies_route_stops",
+      "arguments": {
+        "near": {
+          "lat": 35.9958,
+          "lon": -119.9615
+        },
+        "direction": "north",
+        "ahead_miles": 20
+      }
+    }
+  },
+  {
+    "id": "i5-rest-pet-areas",
+    "group": "thanksgiving",
+    "question": "Which rest areas on I-5 in California have a pet area?",
+    "expect_tools": ["dogpolicies_route_stops", "dogpolicies_i5_corridor"],
+    "expect_outcome": "answered",
+    "probe": {
+      "tool": "dogpolicies_route_stops",
+      "arguments": {
+        "kinds": ["rest area"],
+        "family": true
+      }
+    }
+  },
+  {
+    "id": "i5-open-now",
+    "group": "thanksgiving",
+    "question": "Is I-5 open right now over the Grapevine? Any closures or chain controls?",
+    "expect_tools": ["dogpolicies_i5_conditions"],
+    "expect_outcome": "answered",
+    "allow_outcomes": ["unavailable"],
+    "probe": {
+      "tool": "dogpolicies_i5_conditions",
+      "arguments": {
+        "from_mile": 170,
+        "to_mile": 222
+      }
+    }
+  },
+  {
+    "id": "i5-sf-to-la",
+    "group": "thanksgiving",
+    "question": "Driving I-5 from San Francisco to LA on Thanksgiving with a dog, where do we stop?",
+    "expect_tools": [
+      "dogpolicies_route_stops",
+      "dogpolicies_i5_corridor",
+      "dogpolicies_plan_trip"
+    ],
+    "expect_outcome": "answered",
+    "probe": {
+      "tool": "dogpolicies_route_stops",
+      "arguments": {
+        "near": {
+          "lat": 37.77,
+          "lon": -122.42
+        },
+        "direction": "south",
+        "dog_friendly_only": true
+      }
+    }
+  },
+  {
+    "id": "i5-sacramento-north",
+    "group": "thanksgiving",
+    "question": "Going north from Sacramento on I-5, dog-friendly stops and hotels?",
+    "expect_tools": ["dogpolicies_route_stops", "dogpolicies_i5_corridor"],
+    "expect_outcome": "answered",
+    "probe": {
+      "tool": "dogpolicies_route_stops",
+      "arguments": {
+        "near": {
+          "lat": 38.58,
+          "lon": -121.49
+        },
+        "direction": "north",
+        "kinds": ["lodging", "park", "rest_area"]
+      }
+    }
+  },
+  {
+    "id": "i5-hotel-2dogs",
+    "group": "thanksgiving",
+    "question": "Hotel along I-5 near Bakersfield for two dogs, one night, what is the fee?",
+    "expect_tools": ["dogpolicies_find_hotels", "dogpolicies_route_stops"],
+    "expect_outcome": "answered",
+    "probe": {
+      "tool": "dogpolicies_find_hotels",
+      "arguments": {
+        "near": {
+          "lat": 35.37,
+          "lon": -119.02
+        },
+        "dogs": 2,
+        "nights": 1
+      }
+    }
+  },
+  {
+    "id": "hotels-2dogs-3nights-carmel",
+    "group": "hotels",
+    "question": "I need a hotel for 2 dogs for 3 nights in Carmel, what will the pet fees come to?",
+    "expect_tools": ["dogpolicies_find_hotels", "dogpolicies_plan_trip"],
+    "expect_outcome": "answered",
+    "probe": {
+      "tool": "dogpolicies_find_hotels",
+      "arguments": {
+        "query": "Carmel",
+        "dogs": 2,
+        "nights": 3
+      }
+    }
+  },
+  {
+    "id": "tahoe-hotels-fees",
+    "group": "tahoe",
+    "question": "Which Lake Tahoe hotels allow dogs and what do they charge?",
+    "expect_tools": ["dogpolicies_find_hotels", "dogpolicies_search_places"],
+    "expect_outcome": "answered",
+    "probe": {
+      "tool": "dogpolicies_find_hotels",
+      "arguments": {
+        "query": "Lake Tahoe"
+      }
+    },
+    "must_mention": "Tahoe"
+  },
+  {
+    "id": "las-vegas-pet-fees",
+    "group": "las-vegas",
+    "question": "What are the pet fees at Las Vegas hotels?",
+    "expect_tools": ["dogpolicies_find_hotels", "dogpolicies_get_brand_policy"],
+    "expect_outcome": "answered",
+    "probe": {
+      "tool": "dogpolicies_find_hotels",
+      "arguments": {
+        "state": "NV",
+        "query": "Las Vegas"
+      }
+    },
+    "must_mention": "Las Vegas"
+  },
+  {
+    "id": "yosemite-trails",
+    "group": "yosemite",
+    "question": "Which Yosemite trails can I take my dog on?",
+    "expect_tools": [
+      "dogpolicies_search_places",
+      "dogpolicies_get_place",
+      "dogpolicies_near"
+    ],
+    "expect_outcome": "answered",
+    "must_mention": "Yosemite",
+    "probe": {
+      "tool": "dogpolicies_search_places",
+      "arguments": {
+        "query": "hikes in Yosemite with dogs"
+      }
+    }
+  },
+  {
+    "id": "san-diego-dog-beaches",
+    "group": "san-diego",
+    "question": "What are the off-leash dog beaches in San Diego?",
+    "expect_tools": [
+      "dogpolicies_search_places",
+      "dogpolicies_browse_answers",
+      "dogpolicies_near"
+    ],
+    "expect_outcome": "answered",
+    "probe": {
+      "tool": "dogpolicies_search_places",
+      "arguments": {
+        "type": "beaches",
+        "off_leash": true,
+        "county": "San Diego"
+      }
+    }
+  },
+  {
+    "id": "healdsburg-wineries",
+    "group": "healdsburg",
+    "question": "Which Healdsburg wineries and restaurants let dogs in?",
+    "expect_tools": ["dogpolicies_search_places", "dogpolicies_near"],
+    "expect_outcome": "answered",
+    "probe": {
+      "tool": "dogpolicies_search_places",
+      "arguments": {
+        "query": "wineries Healdsburg dogs"
+      }
+    },
+    "must_mention": "Healdsburg"
+  },
+  {
+    "id": "changes-since-nov",
+    "group": "changes",
+    "question": "What dog rules changed in California since November 1?",
+    "expect_tools": ["dogpolicies_changes_since"],
+    "expect_outcome": "answered",
+    "probe": {
+      "tool": "dogpolicies_changes_since",
+      "arguments": {
+        "since": "2026-11-01"
+      }
+    }
+  },
+  {
+    "id": "brand-la-quinta",
+    "group": "hotels",
+    "question": "What is La Quinta's dog policy?",
+    "expect_tools": ["dogpolicies_get_brand_policy"],
+    "expect_outcome": "answered",
+    "probe": {
+      "tool": "dogpolicies_get_brand_policy",
+      "arguments": {
+        "brand": "la-quinta"
+      }
+    }
+  }
+]

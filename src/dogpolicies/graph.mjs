@@ -90,6 +90,34 @@ export function validateSnapshot(raw) {
   return parsed.data;
 }
 
+/**
+ * For a snapshot this deployment built itself and read from its own assets (the
+ * hosted Worker): the checks that catch a wrong file (schema number, date, the
+ * arrays the tools index) and the two defaults, without walking every place
+ * through zod, which costs about 50 ms of each cold start. The full
+ * validateSnapshot stays the gate for anything fetched or cached;
+ * test/graph-trusted.test.mjs keeps the two in step.
+ */
+export function trustSnapshot(raw) {
+  const ok =
+    raw &&
+    raw.schema === SNAPSHOT_SCHEMA &&
+    /^\d{4}-\d{2}-\d{2}$/.test(String(raw.as_of)) &&
+    typeof raw.site?.url === "string" &&
+    Array.isArray(raw.places) &&
+    raw.places.length > 0 &&
+    ["regions", "brands", "answers", "changes"].every((k) =>
+      Array.isArray(raw[k]),
+    ) &&
+    raw.routes &&
+    typeof raw.routes === "object";
+  if (!ok)
+    throw new Error("snapshot rejected: not the shape this server reads");
+  raw.areas ??= [];
+  raw.towns ??= [];
+  return raw;
+}
+
 export const snapshotVersion = (s) => s.as_of;
 
 /** Builds the indexes once per snapshot. Date-aware fields are computed per call. */
@@ -111,17 +139,20 @@ export function hydrate(snapshot) {
       },
     ]),
   );
-  const events = snapshot.places
-    .flatMap((p) =>
-      (p.verifications ?? []).map((v) => ({
-        ...v,
-        placeId: p.id,
-        placeUid: p.uid,
-        name: p.name,
-        url: p.url,
-      })),
-    )
-    .sort((a, b) => b.at.localeCompare(a.at) || a.name.localeCompare(b.name));
+  // Only the two change tools read the verification log: built on first use, once.
+  let eventLog = null;
+  const buildEvents = () =>
+    snapshot.places
+      .flatMap((p) =>
+        (p.verifications ?? []).map((v) => ({
+          ...v,
+          placeId: p.id,
+          placeUid: p.uid,
+          name: p.name,
+          url: p.url,
+        })),
+      )
+      .sort((a, b) => b.at.localeCompare(a.at) || a.name.localeCompare(b.name));
   return {
     ...snapshot,
     placeById,
@@ -129,7 +160,9 @@ export function hydrate(snapshot) {
     brandById,
     answerBySlug,
     routes,
-    events,
+    get events() {
+      return (eventLog ??= buildEvents());
+    },
     regionIds: snapshot.regions.map((r) => r.id),
     areaIds: snapshot.areas.map((a) => a.id),
     areaById: new Map(snapshot.areas.map((a) => [a.id, a])),

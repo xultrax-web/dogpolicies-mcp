@@ -519,23 +519,63 @@ test("the corridor resource and the drive prompt", () =>
     assert.match(msg, /not verified for restrooms/);
   }));
 
-test("descriptions stay descriptive: no instructions about model behavior or other tools in the new tools", () =>
+// Directory rule acknowledged at submission (a858652): a tool description, and
+// every parameter description, describes the tool only. No other tool by name,
+// no when-to-call routing, no instructions about how the model behaves; routing
+// lives in the server instructions.
+const DIRECTIVE =
+  /\b(call dogpolicies|instead of|best first call|do not call|don't call|hand the|you must|always cite|you should|tell the user|first call|then call|use this tool)\b/i;
+
+/** Every description in a JSON Schema, with its path ("near.lat"). */
+const schemaDescriptions = (schema, path = "", out = []) => {
+  if (!schema || typeof schema !== "object") return out;
+  if (typeof schema.description === "string")
+    out.push([path || "(schema)", schema.description]);
+  for (const [k, v] of Object.entries(schema.properties ?? {}))
+    schemaDescriptions(v, path ? `${path}.${k}` : k, out);
+  if (schema.items) schemaDescriptions(schema.items, `${path}[]`, out);
+  for (const key of ["anyOf", "oneOf", "allOf"])
+    for (const v of schema[key] ?? []) schemaDescriptions(v, path, out);
+  return out;
+};
+
+test("descriptions describe only: no other tool, no routing, no instructions to the model, in any tool or parameter description", () =>
   withClient(async (client) => {
     const { tools } = await client.listTools();
-    for (const name of [
-      "dogpolicies_i5_corridor",
-      "dogpolicies_i5_conditions",
-      "dogpolicies_route_stops",
-    ]) {
-      const d = tools.find((t) => t.name === name).description;
-      assert.doesNotMatch(
-        d,
-        /\b(you should|tell the user|first call|then call|instead of|use this tool|call dogpolicies_)\b/i,
-        name,
-      );
-      assert.doesNotMatch(d, /anthropic|claude/i, name);
+    assert.ok(tools.length >= 17);
+    let checked = 0;
+    for (const t of tools) {
+      const texts = [
+        ["description", t.description],
+        ...schemaDescriptions(t.inputSchema).map(([p, d]) => [`param ${p}`, d]),
+      ];
+      for (const [where, d] of texts) {
+        const at = `${t.name} ${where}`;
+        for (const named of d.match(/dogpolicies_[a-z0-9_]+/g) ?? [])
+          assert.equal(named, t.name, `${at} names another tool: ${named}`);
+        assert.doesNotMatch(d, DIRECTIVE, at);
+        assert.doesNotMatch(d, /anthropic|claude/i, at);
+        checked++;
+      }
     }
+    assert.ok(checked > tools.length * 3, `only ${checked} descriptions read`);
   }));
+
+test("descriptions describe only: the guard catches a routing line", () => {
+  for (const bad of [
+    "Not for a hotel (dogpolicies_find_hotels).",
+    "Best first call for any town question.",
+    "Hand the markdown to the user.",
+    "Use dogpolicies_near instead of this.",
+    "You must cite the source.",
+    "Always cite the verified date.",
+    "Do not call this twice.",
+  ])
+    assert.ok(
+      DIRECTIVE.test(bad) || /dogpolicies_[a-z0-9_]+/.test(bad),
+      bad,
+    );
+});
 
 test("route_stops: a park or hotel on the far bank of I-5 serves both directions; only a directional rest area is one-way", () =>
   withClient(async (client) => {

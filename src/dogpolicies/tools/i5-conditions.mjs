@@ -2,10 +2,14 @@ import * as z from "zod/v4";
 import { READ_ONLY } from "../../core/server.mjs";
 import { result } from "../../core/result.mjs";
 import { LIMITS } from "../../config.mjs";
-import { Envelope, OutcomeFields, answer } from "./common.mjs";
+import { Envelope, OutcomeFields, answer, formatSchema } from "./common.mjs";
+import { DIRECTION_SYNONYMS, choice, pointInput } from "./tolerant.mjs";
 import { I5, MILE_M, axisOf, calibrationOf, positionOf } from "../i5.mjs";
 
-export const CONDITIONS_PATH = "/api/v1/conditions/i-5.json";
+import { CONDITIONS_PATH, conditionsSource } from "./conditions-source.mjs";
+import { isoFromEpoch } from "../vendor/closures.mjs";
+
+export { CONDITIONS_PATH };
 // A document older than this is served with stale: true and a note; the loop
 // rebuilds it every 15 minutes, so two hours means the feeds or the loop are down.
 export const STALE_MINUTES = 120;
@@ -27,9 +31,10 @@ export const i5Conditions = (ctx) => {
     title: "I-5 conditions now",
     since: "0.3.0",
     cache: false,
-    description: `Current Caltrans lane closures, road-weather station readings, changeable-message-sign text and chain-control status on I-5 in California, each placed on the I-5 centerline (s meters from San Ysidro and the Caltrans mile) and matched to the nearest DogPolicies dog stop. Conditions come from Caltrans' CWWP2 feeds fetched within the last 15 minutes (fetched_at in the result) and are not verified rules.
-
-The window is a mile range (from_mile, to_mile) or a point with a direction and ahead_miles; with none, the whole of I-5 in California. When the document cannot be read (no network, feeds down), the answer has outcome unavailable and the live page's address; a document older than two hours is marked stale.
+    description: `Is I-5 open right now: lane closures, chain controls, road weather and sign messages on the freeway in California, and the nearest dog stop to each?
+Live state, not rules: Caltrans feeds fetched within the last 15 minutes (fetched_at in the result), not verified rules. Covers the Grapevine and every other stretch of I-5 in California. Other highways are not covered.
+Inputs: from_mile and to_mile, or near={lat, lon} with direction and ahead_miles; with none, all of I-5 in California.
+Each condition is placed on the I-5 centerline (mile, s meters from San Ysidro) and matched to the nearest dog stop. If the feeds cannot be read the answer has outcome unavailable and the address of the live Caltrans page. A result older than two hours is marked stale.
 
 Examples:
   - "Is there a closure or chains on the Grapevine right now?" -> from_mile=170, to_mile=222
@@ -42,25 +47,29 @@ Examples:
         .describe("Start of a mile range"),
       to_mile: num().min(0).max(800).optional().describe("End of a mile range"),
       near: z
-        .strictObject({
-          lat: num().min(32).max(42.1).describe("Latitude"),
-          lon: num().min(-124.5).max(-114).describe("Longitude"),
-        })
+        .preprocess(
+          pointInput,
+          z.strictObject({
+            lat: num().min(32).max(42.1).describe("Latitude"),
+            lon: num().min(-124.5).max(-114).describe("Longitude"),
+          }),
+        )
         .optional()
         .describe("A point on or near I-5"),
-      direction: z
-        .enum(["north", "south"])
-        .default("north")
-        .describe("Direction of travel from near"),
+      direction: choice(
+        ["north", "south"],
+        DIRECTION_SYNONYMS,
+        [],
+        "north",
+      ).describe("Direction of travel from near"),
       ahead_miles: num()
         .min(1)
         .max(800)
         .default(50)
         .describe("Window in miles from near"),
-      response_format: z
-        .enum(["markdown", "json"])
-        .default("markdown")
-        .describe("'markdown' for readable text, 'json' for structured data"),
+      response_format: formatSchema().describe(
+        "'markdown' for readable text, 'json' for structured data",
+      ),
     }),
     outputSchema: z.looseObject({
       ...Envelope,
@@ -186,25 +195,7 @@ Examples:
         window.to_mile = Math.round(cal.sToMile(window.hi_s) * 10) / 10;
       }
       // The document: in-process on the hosted server, over the network for the package.
-      const load =
-        ctx.conditions ??
-        (ctx.config.network
-          ? async () => {
-              const res = await ctx.config.fetch(
-                `${ctx.config.baseUrl}${CONDITIONS_PATH}`,
-                {
-                  headers: { Accept: "application/json" },
-                  signal: AbortSignal.timeout(LIMITS.fetchTimeoutMs ?? 10_000),
-                },
-              );
-              if (!res.ok)
-                throw new Error(
-                  `the conditions document answered HTTP ${res.status}`,
-                );
-              const doc = await res.json();
-              return doc?.error ? null : doc;
-            }
-          : null);
+      const load = conditionsSource(ctx);
       if (!load)
         return unavailable(
           "This server runs without network access, so live conditions cannot be read here.",
@@ -221,7 +212,18 @@ Examples:
       }
       if (!doc) return unavailable(why);
       const ageMin = (Date.now() - Date.parse(doc.fetchedAt)) / 60_000;
-      const stale = Number.isFinite(ageMin) && ageMin > STALE_MINUTES;
+      // The hosted loader (worker/mcp-engine.mjs) answers a failed read from the last
+      // document it held and says so in `fallback`: that is a stale reading whatever
+      // its age, and the answer names the age.
+      const fallback = doc.fallback ?? null;
+      const stale =
+        Boolean(fallback) ||
+        (Number.isFinite(ageMin) && ageMin > STALE_MINUTES);
+      const agePhrase = !Number.isFinite(ageMin)
+        ? "of unknown age"
+        : ageMin < 90
+          ? `${Math.max(1, Math.round(ageMin))} minutes old`
+          : `${Math.round(ageMin / 60)} hours old`;
       const inWindow = (s) => !window || (s >= window.lo_s && s <= window.hi_s);
       const closures = (doc.closures ?? []).filter(
         (c) => !window || (c.sEnd >= window.lo_s && c.sBegin <= window.hi_s),
@@ -231,9 +233,11 @@ Examples:
       const chainControls = (doc.chainControls ?? []).filter((x) =>
         inWindow(x.s),
       );
-      const staleNote = stale
-        ? ` This reading is ${Math.round(ageMin / 60)} hours old: the feeds or the loop have been down since, so treat it as history and check ${livePage()}.`
-        : "";
+      const staleNote = fallback
+        ? ` The live read of the conditions document failed just now, so this is the last reading this server held, ${agePhrase}: treat it as history and check ${livePage()}.`
+        : stale
+          ? ` This reading is ${agePhrase}: the feeds or the loop have been down since, so treat it as history and check ${livePage()}.`
+          : "";
       const data = {
         ...envelope,
         fetched_at: doc.fetchedAt,
@@ -252,11 +256,19 @@ Examples:
         const where = window
           ? `miles ${window.from_mile}–${window.to_mile}`
           : "all of I-5 in California";
-        const when = (e) =>
-          e
-            ? new Date(e * 1000).toISOString().slice(0, 16).replace("T", " ") +
-              " UTC"
-            : null;
+        // null for no end and for an end no Date can hold (a garbage or wrong-unit epoch).
+        const when = (e) => {
+          const iso = e ? isoFromEpoch(e) : null;
+          return iso ? `${iso.slice(0, 16).replace("T", " ")} UTC` : null;
+        };
+        const endText = (c) => {
+          const until = when(c.endEpoch);
+          return until
+            ? `, until ${until}`
+            : c.endEpoch || c.indefinite
+              ? ", end not set"
+              : "";
+        };
         const lines = [
           `# I-5 conditions, ${where}: ${closures.length} closures, ${weather.length} weather stations, ${signs.length} signs with a message, ${chainControls.length} chain-control points${data.chains_in_effect ? "; CHAIN CONTROLS IN EFFECT" : ""}${stale ? " (STALE READING)" : ""}`,
           "",
@@ -266,7 +278,7 @@ Examples:
           ...(closures.length
             ? closures.map(
                 (c) =>
-                  `- Mile ${c.mileBegin}–${c.mileEnd} (s ${c.sBegin.toLocaleString("en-US")}–${c.sEnd.toLocaleString("en-US")} m), ${c.direction}: ${c.type} closure, ${c.work || "work not stated"}, lanes closed ${c.lanesClosed || "?"} of ${c.totalLanes || "?"}, ${c.where}${c.endEpoch ? `, until ${when(c.endEpoch)}` : c.indefinite ? ", end not set" : ""}; nearest dog stop ${c.nearestStop?.name ?? "none"} (${c.nearestStop?.milesAway ?? "?"} mi)`,
+                  `- Mile ${c.mileBegin}–${c.mileEnd} (s ${c.sBegin.toLocaleString("en-US")}–${c.sEnd.toLocaleString("en-US")} m), ${c.direction}: ${c.type} closure, ${c.work || "work not stated"}, lanes closed ${c.lanesClosed || "?"} of ${c.totalLanes || "?"}, ${c.where}${endText(c)}; nearest dog stop ${c.nearestStop?.name ?? "none"} (${c.nearestStop?.milesAway ?? "?"} mi)`,
               )
             : ["- None reported in the window."]),
           "",

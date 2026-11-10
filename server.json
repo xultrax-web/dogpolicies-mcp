@@ -2,19 +2,37 @@
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.xultrax-web/dogpolicies-mcp",
   "title": "DogPolicies",
-  "description": "Verified dog rules for California and Nevada travel: parks, beaches, hotels, fees, sourced and dated",
+  "description": "Verified dog rules for California and Nevada travel: hotel pet fees, trip plans, highway stops",
   "websiteUrl": "https://dogpolicies.com/mcp/about/",
+  "icons": [
+    {
+      "src": "https://dogpolicies.com/brand/mcp-icon-light-v3.png",
+      "mimeType": "image/png",
+      "sizes": [
+        "256x256"
+      ],
+      "theme": "light"
+    },
+    {
+      "src": "https://dogpolicies.com/brand/mcp-icon-dark-v2.png",
+      "mimeType": "image/png",
+      "sizes": [
+        "256x256"
+      ],
+      "theme": "dark"
+    }
+  ],
   "repository": {
     "url": "https://github.com/xultrax-web/dogpolicies-mcp",
     "source": "github"
   },
-  "version": "0.4.1",
+  "version": "0.5.0",
   "packages": [
     {
       "registryType": "npm",
       "registryBaseUrl": "https://registry.npmjs.org",
       "identifier": "dogpolicies-mcp",
-      "version": "0.4.1",
+      "version": "0.5.0",
       "runtimeHint": "npx",
       "transport": {
         "type": "stdio"
@@ -48,7 +66,7 @@
       "tool": "dogpolicies-release",
       "license": "code MIT; data CC BY 4.0 (chain-hotel names and locations ODbL)",
       "coverage": "California and Nevada",
-      "tools": 15
+      "tools": 17
     }
   }
 }

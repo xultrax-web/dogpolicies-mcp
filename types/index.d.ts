@@ -50,6 +50,38 @@ export function readConfig(options?: {
 export function toolDefinitions(
   ctx: Runtime,
 ): Array<{ name: string; title: string; description: string }>;
+export interface RestResult {
+  status: number;
+  body: Record<string, unknown>;
+  /** seconds the answer may be reused; 0 means do not store */
+  cache: number;
+}
+/** The read-only tools as plain HTTP operations (GET <base>/<operation>?...), one code path with the MCP server. */
+export function createRestApi(
+  ctx: Runtime,
+  options?: { cacheSize?: number },
+): {
+  operations: Map<string, { slug: string; tool: { name: string } }>;
+  list(): string[];
+  run(
+    slug: string,
+    searchParams: URLSearchParams,
+    hooks?: {
+      onToolCall?: (name: string, ctx: unknown) => unknown;
+      onToolResult?: (name: string, ctx: unknown, done: unknown) => unknown;
+    },
+  ): Promise<RestResult>;
+};
+/** OpenAPI 3.1 paths and component schemas for those operations, from the tool definitions. */
+export function restOpenApi(
+  ctx: Runtime,
+  options?: { prefix?: string },
+): { paths: Record<string, unknown>; schemas: Record<string, unknown>; operations: string[] };
+export function operationSlug(toolName: string): string;
+export function parseQuery(
+  jsonSchema: object,
+  searchParams: URLSearchParams,
+): Record<string, unknown>;
 export function connectInProcess(
   ctx: Runtime,
 ): Promise<{ client: unknown; server: McpServer; close(): Promise<void> }>;

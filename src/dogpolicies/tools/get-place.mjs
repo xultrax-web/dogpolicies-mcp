@@ -21,6 +21,7 @@ import {
   summary,
 } from "./common.mjs";
 import { I5, axisOf, pairRow, pairLine } from "../i5.mjs";
+import { outsideCoverage, outsideFields } from "./coverage.mjs";
 
 const PlaceDetail = PlaceItem.extend({
   ...Envelope,
@@ -67,9 +68,10 @@ export const getPlace = (ctx) => ({
   title: "Get place details",
   since: "0.1.0",
   cache: true,
-  description: `The full record for one place you already know by id: every dog rule with its display text, the rules list, and each source with its URL, publisher, capture date and quote. A place on I-5 in California also carries its axis position (s meters from San Ysidro on the I-5 centerline, Caltrans mile, meters off the road, side of northbound travel, road elevation, strip) and, when it is the dog side of a paired stop, that pair: the exit and the people-stops near it (counted from OpenStreetMap, never named, not verified for restrooms).
-
-Takes a place id, as returned in every search result; a place's exact name works too, and a near miss resolves to the one clear match (labeled resolved_from). An id nothing matches comes back as an answer with close matches (did_you_mean), not an error. Example: id="carmel-beach".`,
+  description: `What are the exact dog rules for this one place, and what is the official source: the quote, the publisher, the date checked?
+The leash rule, where dogs may go, fees and limits in full, with the official source and its quote, for one place known by id or name.
+Input: id as returned in any result (for example "carmel-beach"); an exact name works, and a near miss resolves to the one clear match, labeled resolved_from. An id nothing matches is an answer with did_you_mean, not an error.
+Returns every rule with display text and rule ids, each source with URL, publisher, capture date and quote, and facts the source does not state listed as not_stated. A place on I-5 in California also carries its position on the road (Caltrans mile, side, distance off the freeway) and any paired exit.`,
   inputSchema: z.strictObject({
     id: z.string().min(2).max(120).describe('Place id, e.g. "fort-funston"'),
     response_format: pageSchema.response_format,
@@ -85,6 +87,49 @@ Takes a place id, as returned in every search result; a place's exact name works
     };
     let p = (isSafeId(id) ? ctx.graph.placeById.get(id) : null) ?? byName();
     let resolvedFrom = null;
+    // a name outside California and Nevada ("Portland, OR", "tokyo") is said so
+    const outside = p ? null : outsideCoverage(ctx.graph, id.replace(/[-_]/g, " "));
+    if (outside) {
+      const fields = outsideFields(ctx.graph, outside);
+      return answer({
+        ...fields,
+        shape: {
+          ...ctx.citations.envelope(ctx.graph.as_of),
+          id,
+          uid: "",
+          name: id,
+          type: "unknown",
+          status: "unknown",
+          answer: fields.message,
+          citation: "",
+          brand_policy: false,
+          confidence: "unstated",
+          confirmed_by: null,
+          freshness: null,
+          tags: [],
+          verified_at: "",
+          review_due: "",
+          url: `${ctx.graph.site.url}/search/`,
+          markdown_url: "",
+          source_urls: [],
+          record_license: "",
+          facts: [],
+          rule_records: [],
+          not_stated: [],
+          rules: [],
+          sources: [],
+          axis: null,
+          paired_stop: null,
+        },
+        nearest: fields.nearest.length ? fields.nearest : undefined,
+        format: response_format,
+        text: noMatchText(ctx, {
+          title: fields.title,
+          message: fields.message,
+          next: fields.next,
+        }),
+      });
+    }
     if (!p) {
       // a misspelled id or a name with a word off: the one clear match, labeled
       const close = closestPlace(ctx.graph, id);
@@ -156,9 +201,11 @@ Takes a place id, as returned in every search result; a place's exact name works
       ? (axis.paired ?? []).find((x) => x.dogStop.placeId === p.id)
       : null;
     const pairedStop = pair ? pairRow(pair, ctx.graph) : null;
+    // answer and citation lead with a seasonal rule in effect today.
+    const item = summary(p, today);
     const data = {
       ...ctx.citations.envelope(ctx.graph.as_of),
-      ...summary(p, today),
+      ...item,
       managing_agency: p.managing_agency,
       brand: p.brand,
       address: p.address,
@@ -176,15 +223,24 @@ Takes a place id, as returned in every search result; a place's exact name works
       ...(p.osm ? { attribution: OSM_ATTRIBUTION } : {}),
     };
     const ruleBy = Object.fromEntries(rules.map((r) => [r.kind, r]));
+    const season = item.today;
     const lines = [
-      p.citation,
+      item.citation,
       "",
       `# ${p.name}`,
       ...(resolvedFrom
         ? [`(The closest match to "${resolvedFrom}"; its id is \`${p.id}\`.)`]
         : []),
       "",
-      `**${p.answer}**`,
+      `**${item.answer}**`,
+      ...(season && !season.sentence
+        ? [
+            "",
+            season.next
+              ? `No seasonal rule is in effect on ${season.date}. Next: ${season.next.season} (starts ${season.next.starts}): ${season.next.rule}.`
+              : `Seasonal rules without dates in the source: ${season.undated.map((s) => `${s.season}: ${s.rule}`).join("; ")}.`,
+          ]
+        : []),
       "",
       ...p.rows.map((f) => {
         const r = ruleBy[f.key];

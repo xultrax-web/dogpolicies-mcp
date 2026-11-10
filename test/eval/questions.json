@@ -338,5 +338,23 @@
       "dogs_allowed": true
     },
     "facts": ["places? found"]
+  },
+  {
+    "q": "Do I need chains on I-80 to Tahoe right now?",
+    "tool": "dogpolicies_road_conditions",
+    "args": {
+      "route": "I-80",
+      "direction": "east"
+    },
+    "facts": ["I-80 conditions", "quickmap\\.dot\\.ca\\.gov"]
+  },
+  {
+    "q": "Is Highway 50 open over Echo Summit tonight? Any closures?",
+    "tool": "dogpolicies_road_conditions",
+    "args": {
+      "route": "Highway 50",
+      "town": "Echo Summit"
+    },
+    "facts": ["US-50 conditions", "Echo Summit"]
   }
 ]

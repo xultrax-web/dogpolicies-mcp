@@ -1,7 +1,7 @@
 // The reusable core: everything a second MCP server needs that is not about
 // dogs. See docs/mcp-architecture.md in the repository for how to build one.
 
-export { createToolServer, READ_ONLY, WRITE_ONCE } from "./server.mjs";
+export { createToolServer, wrapToolHandler, READ_ONLY, WRITE_ONCE } from "./server.mjs";
 export { createHttpHandler, listen } from "./http.mjs";
 export { createSnapshotSource, readSnapshotFile } from "./source.mjs";
 export { createCitations, quoteBlock } from "./citation.mjs";

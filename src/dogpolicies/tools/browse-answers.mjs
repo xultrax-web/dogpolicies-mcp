@@ -35,9 +35,9 @@ export const browseAnswers = (ctx) => ({
   title: "Browse answered questions",
   since: "0.1.0",
   cache: true,
-  description: `Ready-made lists that answer common questions (list the state parks, national parks, beaches or hotels that allow dogs), such as "Which California national parks allow dogs?" or "Where can dogs go off leash on California beaches?".
-
-Without a slug, lists every question with its slug and result count. With a slug, returns that question's places.`,
+  description: `Which places match a common question, as a ready-made list: California national parks that allow dogs, off-leash dog beaches in California, state parks that allow dogs?
+Covers broad "list the ..." questions that are not about one town. Each list is fixed; it takes no county, type or off-leash filter.
+Without a slug it lists every question with its slug and result count; with a slug it returns that question's places (for example "off-leash-dog-beaches-california"), each with the dog rule, verified date and URL.`,
   inputSchema: z.strictObject({
     slug: z
       .string()

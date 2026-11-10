@@ -28,7 +28,7 @@ export function createReporter({
       }
       return ++inWindow <= perMinute;
     },
-    async send({ placeId, message, sourceUrl, contact }) {
+    async send({ placeId, message, sourceUrl, contact, fact }) {
       try {
         const res = await fetch(endpoint, {
           method: "POST",
@@ -43,6 +43,7 @@ export function createReporter({
             sourceUrl: sourceUrl ?? "",
             contact: contact ?? "",
             via: "mcp-npm",
+            ...(fact ? { fact } : {}),
           }),
           signal: AbortSignal.timeout(timeoutMs),
           redirect: "error",
@@ -56,7 +57,16 @@ export function createReporter({
         const body = await res.json();
         if (!body?.id)
           return { ok: false, reason: body?.error ?? "no report id" };
-        return { ok: true, id: String(body.id) };
+        // The hosted site answers a correction with a public ticket (0.5.0); an older
+        // site, or one with no database, sends none.
+        const ticket = /^c-[a-z2-7]{8}$/.test(String(body.ticket ?? ""))
+          ? String(body.ticket)
+          : null;
+        return {
+          ok: true,
+          id: String(body.id),
+          ...(ticket ? { ticket, public: true } : {}),
+        };
       } catch (error) {
         return {
           ok: false,

@@ -2,15 +2,31 @@ import * as z from "zod/v4";
 import { READ_ONLY } from "../../core/server.mjs";
 import { result } from "../../core/result.mjs";
 import { LIMITS } from "../../config.mjs";
+import { closedNowOf, closuresFor } from "./conditions-source.mjs";
+import { closureLine } from "../vendor/closures.mjs";
 import {
   Envelope,
   OSM_ATTRIBUTION,
   OutcomeFields,
   PlaceItem,
   answer,
+  formatSchema,
+  num,
   summary,
   summaryLine,
 } from "./common.mjs";
+import {
+  DIRECTION_SYNONYMS,
+  KINDS,
+  KIND_SYNONYMS,
+  STRIP_NAMES,
+  choice,
+  choiceList,
+  flag,
+  idChoice,
+  pageSize,
+  pointInput,
+} from "./tolerant.mjs";
 import {
   I5,
   MILE_M,
@@ -43,91 +59,75 @@ export const i5Corridor = (ctx) => {
     title: "I-5 corridor by stretch",
     since: "0.3.0",
     cache: true,
-    description: `The I-5 corridor in California as eleven named stretches (strips) on the I-5 centerline, from San Ysidro (s = 0 m) to the Oregon line (s ≈ 1,281,400 m), and the dog stops in any stretch, mile range or window ahead of a point. Every stop carries its s in meters from San Ysidro, its Caltrans odometer mile, the side of the road it serves (right or left of northbound travel, or both), its distance off the freeway, the road's elevation, and restrooms, water, pet area, dog park and hours as its official source states them. A family stop is one whose official source states restrooms and a pet area or dog park. A paired stop is a freeway exit with places to stop for people nearby (located through OpenStreetMap, counted by kind, never named and not verified for restrooms) matched to the nearest DogPolicies place that allows dogs within about a mile, with its rule and source.
-
-With no stretch, miles or point, the result is the list of stretches with their s and mile ranges and stop counts. Strips: ${axis ? axis.strips.map((st) => `${st.id} (${st.name.replace(/^I-5 · /, "")})`).join(", ") : "none"}.
+    // Closed rest areas come from a live feed: an answer holds five minutes.
+    cacheTtlMs: 5 * 60_000,
+    description: `What is on I-5 between here and there for a dog: the next restroom stops with a pet area, the stops on the Grapevine, between Sacramento and Redding?
+For the freeway in California only, by one of eleven named stretches (sandiego, orange-la, grapevine, kern-westside, westside, delta, sacramento, valley, tehama, shasta, siskiyou), a mile range, or a window ahead of a point. It covers I-5 only, with no hotel fee arithmetic and no closures or chain controls.
+Inputs: strip, or from_mile and to_mile (Caltrans odometer), or near={lat, lon} with direction (north or south) and ahead_miles; family=true keeps stops whose official source states restrooms and a pet area or dog park; paired=true adds exits with places for people nearby (counted from OpenStreetMap, never named, not verified for restrooms) matched to the nearest dog-legal place. With none of these it lists the stretches.
+Each stop carries its mile, s in meters from San Ysidro, the side of the road, distance off the freeway, and restrooms, water, pet area and hours as the source states them, with source URL and verified date. A rest area Caltrans reports fully closed right now carries closed_now (Caltrans' reason and end time); it stays in the list and the text names the first open stop instead.
 
 Examples:
-  - "What is between the Grapevine and Kettleman?" -> strip="grapevine" (East LA to Wheeler Ridge) and strip="kern-westside" (Wheeler Ridge to Kettleman)
+  - "What is between the Grapevine and Kettleman?" -> strip="grapevine" and strip="kern-westside"
   - "The next 5 family stops northbound from Stockton" -> near={lat:37.95, lon:-121.29}, direction="north", family=true, limit=5
-  - "Every stop between mile 300 and 340" -> from_mile=300, to_mile=340
-  - "Exits with somewhere for people and a park for the dog in the Sacramento stretch" -> strip="sacramento", paired=true`,
+  - "Every stop between mile 300 and 340" -> from_mile=300, to_mile=340`,
     inputSchema: z.strictObject({
-      strip: z
-        .enum(stripIds)
+      strip: idChoice(
+        stripIds,
+        Object.fromEntries(
+          (axis?.strips ?? []).map((st) => [
+            st.id,
+            [st.name, ...(STRIP_NAMES[st.id] ?? [])],
+          ]),
+        ),
+      )
         .optional()
         .describe(
           "A stretch by id (sandiego, orange-la, grapevine, kern-westside, westside, delta, sacramento, valley, tehama, shasta, siskiyou)",
         ),
-      from_mile: z
-        .number()
+      from_mile: num()
         .min(0)
         .max(800)
         .optional()
         .describe("Start of a mile range (Caltrans odometer)"),
-      to_mile: z
-        .number()
-        .min(0)
-        .max(800)
-        .optional()
-        .describe("End of a mile range"),
+      to_mile: num().min(0).max(800).optional().describe("End of a mile range"),
       near: z
-        .strictObject({
-          lat: z.number().min(32).max(42.1).describe("Latitude"),
-          lon: z.number().min(-124.5).max(-114).describe("Longitude"),
-        })
+        .preprocess(
+          pointInput,
+          z.strictObject({
+            lat: num().min(32).max(42.1).describe("Latitude"),
+            lon: num().min(-124.5).max(-114).describe("Longitude"),
+          }),
+        )
         .optional()
         .describe(
           "A point on or near I-5; the window starts at the nearest point of the road",
         ),
-      direction: z
-        .enum(["north", "south"])
-        .default("north")
-        .describe("Direction of travel from near; north means increasing s"),
-      ahead_miles: z
-        .number()
+      direction: choice(
+        ["north", "south"],
+        DIRECTION_SYNONYMS,
+        [],
+        "north",
+      ).describe("Direction of travel from near; north means increasing s"),
+      ahead_miles: num()
         .min(1)
         .max(800)
         .default(50)
         .describe("Window in miles from near in the direction of travel"),
-      kinds: z
-        .array(
-          z.enum([
-            "rest_area",
-            "stop",
-            "lodging",
-            "campground",
-            "cabins",
-            "park",
-            "beach",
-            "trail",
-            "restaurant",
-          ]),
-        )
-        .min(1)
+      kinds: choiceList(KINDS, KIND_SYNONYMS)
         .optional()
         .describe("Kinds of stops to include; all by default"),
-      family: z.boolean().default(false).describe("Only family stops"),
-      paired: z
-        .boolean()
-        .default(false)
-        .describe("Also list the paired stops in the window"),
-      dog_friendly_only: z
-        .boolean()
-        .default(true)
-        .describe("Leave out stops where dogs are not allowed"),
-      limit: z
-        .number()
-        .int()
-        .min(1)
-        .max(50)
-        .default(15)
-        .describe("Maximum stops to return"),
-      offset: z.number().int().min(0).default(0).describe("Stops to skip"),
-      response_format: z
-        .enum(["markdown", "json"])
-        .default("markdown")
-        .describe("'markdown' for readable text, 'json' for structured data"),
+      family: flag(false).describe("Only family stops"),
+      paired: flag(false).describe("Also list the paired stops in the window"),
+      dog_friendly_only: flag(true).describe(
+        "Leave out stops where dogs are not allowed",
+      ),
+      limit: pageSize({ max: 50, fallback: 15 }).describe(
+        "Maximum stops to return",
+      ),
+      offset: num().int().min(0).default(0).describe("Stops to skip"),
+      response_format: formatSchema().describe(
+        "'markdown' for readable text, 'json' for structured data",
+      ),
     }),
     outputSchema: z.looseObject({
       ...Envelope,
@@ -310,15 +310,26 @@ Examples:
             );
       }
       const total = stops.length;
-      const page = stops.slice(args.offset, args.offset + args.limit).map((x) =>
-        summary(x.place, today, {
+      const pageStops = stops.slice(args.offset, args.offset + args.limit);
+      // Rest areas Caltrans reports closed now (none when the feed is unavailable).
+      const usable = pageStops.some((x) => x.place.type === "rest_area")
+        ? await closuresFor(ctx)
+        : null;
+      const page = pageStops.map((x) => {
+        const closed = closedNowOf(x, usable);
+        return summary(x.place, today, {
           mile: x.mile,
           off_route_miles: x.off_miles,
           on_road: route.short,
           exit: x.place.exit ?? null,
           ...axisFields(x, { startS, ahead }),
-        }),
-      );
+          ...(closed ? { closed_now: closed } : {}),
+        });
+      });
+      const closedRows = page.filter((s) => s.closed_now);
+      const firstOpen = closedRows.length
+        ? page.find((s) => !s.closed_now && (s.miles_ahead ?? 0) >= 0)
+        : null;
       const data = {
         ...ctx.citations.envelope(ctx.graph.as_of),
         axis_version: axis.version,
@@ -367,6 +378,11 @@ Examples:
               "Exit numbers, names and people-stop counts are OpenStreetMap data (ODbL, © OpenStreetMap contributors); restrooms at a people-stop are not verified.",
             );
         }
+        if (closedRows.length)
+          lines.push(
+            "",
+            `Closed now (Caltrans): ${closedRows.map((s) => `${s.name}, ${closureLine(s.closed_now).replace("Closed now: ", "")}`).join("; ")}. They stay in the list; skip them${firstOpen ? `: the first open stop is ${firstOpen.name}${firstOpen.miles_ahead != null ? `, ${firstOpen.miles_ahead} mi ahead` : ""}` : ""}. Live Caltrans data read ${closedRows[0].closed_now.fetched_at}, not a verified rule; check quickmap.dot.ca.gov.`,
+          );
         lines.push(...ctx.citations.footer(page, { osmLine: OSM_ATTRIBUTION }));
         const text = lines.join("\n");
         return text.length <= LIMITS.resultCharacters
