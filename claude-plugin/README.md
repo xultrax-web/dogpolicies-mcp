@@ -17,7 +17,7 @@ claude-plugin/
   .claude-plugin/plugin.json     manifest (name, version, listing links, icon)
   .mcp.json                      the connector: https://dogpolicies.com/mcp/ (http, no sign-in, no credentials)
   skills/dog-travel/SKILL.md     when to use DogPolicies, when not to, which tool, how to cite, trip card and link
-  assets/logo.png                the icon for the listing
+  assets/                        the listing icon (named in plugin.json)
   LICENSE                        MIT
   README.md                      this file
 ```
