@@ -29,6 +29,10 @@ export const ROAD_CONDITIONS_ROUTES = {
   },
   "i-15": { number: "15", covers: "San Diego to the Nevada line at Primm" },
   "i-5": { number: "5", covers: "the Mexican border to Oregon" },
+  "us-395": {
+    number: "395",
+    covers: "Hesperia past Bishop and Mammoth Lakes to the Nevada line, and the north end from the Nevada line to Oregon",
+  },
 };
 export const QUICKMAP_URL = "https://quickmap.dot.ca.gov/";
 export const conditionsPathFor = (id) =>

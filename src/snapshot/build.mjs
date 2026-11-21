@@ -12,6 +12,29 @@ export const SNAPSHOT_SCHEMA = 1;
 const clean = (obj) =>
   Object.fromEntries(Object.entries(obj).filter(([, v]) => v !== undefined));
 
+/** An emergency animal hospital as the tools read it. */
+function vetRecord(v) {
+  return clean({
+    id: v.id,
+    name: v.name,
+    city: v.city,
+    county: v.county,
+    state: v.state,
+    address: v.address,
+    zip: v.zip,
+    geo: v.geo,
+    phone: v.phone,
+    website: v.website,
+    emergency: v.emergency,
+    hours: v.hours,
+    note: v.note,
+    corridors: v.corridors,
+    verified_at: v.verifiedAt,
+    source_url: v.sources.site.url,
+    quote: v.sources.site.quote,
+  });
+}
+
 function placeRecord(
   p,
   { regionName, areaName, tagsOf, abs, placePath, ruleJson },
@@ -22,6 +45,7 @@ function placeRecord(
     uid: p.uid,
     name: p.name,
     type: p.type,
+    alsoTypes: p.alsoTypes,
     city: p.city ?? null,
     county: p.county ?? null,
     state: p.state,
@@ -273,6 +297,8 @@ export function buildSnapshot(graph, deps) {
     towns: gazetteerTowns(graph),
     places: graph.places.map((p) => placeRecord(p, ctx)),
     brands: graph.brands.map((b) => brandRecord(b, ctx)),
+    // Emergency animal hospitals (R-29, 0.6.0): where and when, from each hospital's own page.
+    vets: (graph.vets ?? []).map(vetRecord),
     answers: answers.map((a) => ({
       slug: a.slug,
       question: a.question,

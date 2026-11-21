@@ -42,6 +42,7 @@ import {
   servesDirection,
   stripAt,
 } from "../i5.mjs";
+import { isAnyKind } from "../stay.mjs";
 
 /**
  * The corridor tool: what is in a stretch of I-5 in California, by strip,
@@ -297,7 +298,7 @@ Examples:
             servesDirection(x, ahead),
         );
         if (args.kinds)
-          stops = stops.filter((x) => args.kinds.includes(x.place.type));
+          stops = stops.filter((x) => isAnyKind(x.place, args.kinds));
         if (args.dog_friendly_only)
           stops = stops.filter((x) => x.place.status !== "no");
         if (args.family) stops = stops.filter((x) => isFamilyStop(x.place));

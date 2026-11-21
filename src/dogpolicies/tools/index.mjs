@@ -19,6 +19,7 @@ import { subscribeChanges } from "./subscribe-changes.mjs";
 import { i5Corridor } from "./i5-corridor.mjs";
 import { i5Conditions } from "./i5-conditions.mjs";
 import { roadConditions } from "./road-conditions.mjs";
+import { emergencyVet } from "./emergency-vet.mjs";
 import { invalidInput } from "./invalid.mjs";
 
 // Every tool answers arguments it cannot use instead of refusing them (decision 111).
@@ -40,6 +41,7 @@ export const tools = [
   i5Corridor,
   i5Conditions,
   roadConditions,
+  emergencyVet,
   getRule,
   changesSince,
   changesNear,

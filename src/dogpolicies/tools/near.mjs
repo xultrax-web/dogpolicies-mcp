@@ -17,6 +17,8 @@ import {
 } from "./common.mjs";
 import { resolveScope, scopeAnswer, scopeSchema } from "./scope.mjs";
 import { KIND_SYNONYMS, choiceList, flag } from "./tolerant.mjs";
+import { CARD_URI } from "../ui/trip-card.mjs";
+import { nearest24, vetLine } from "./vets.mjs";
 
 export const GROUPS = [
   ["beach", "Beaches"],
@@ -38,6 +40,8 @@ const num = () => z.coerce.number();
 export const near = (ctx) => ({
   name: "dogpolicies_near",
   title: "What is near a town",
+  // The trip card (MCP Apps, R-27): hosts that support it draw it beside this answer.
+  ui: { resourceUri: CARD_URI },
   since: "0.2.0",
   cache: true,
   description: `What can my dog do in or around this town, neighborhood or region: beaches, parks, trails, hotels, campgrounds, cabins, patios and rest areas, nearest first?
@@ -115,8 +119,14 @@ Examples:
       });
     const today = ctx.today();
     const wanted = new Set(args.types ?? GROUPS.map(([t]) => t));
+    // A place sits in its own kind's group, or, when that kind was not asked
+    // for, in the first other kind it also is (a campground that rents cabins,
+    // in a cabins search). Never in two groups.
+    const groupOf = (p) =>
+      wanted.has(p.type) ? p.type : p.alsoTypes?.find((t) => wanted.has(t));
     const keep = (p) =>
-      wanted.has(p.type) && (!args.dogs_allowed_only || p.status !== "no");
+      groupOf(p) !== undefined &&
+      (!args.dogs_allowed_only || p.status !== "no");
     let radius = scope.radius;
     let widenedFrom = null;
     let found = scope.within(ctx.graph.places).filter((x) => keep(x.place));
@@ -188,7 +198,7 @@ Examples:
     }
     const groups = GROUPS.filter(([t]) => wanted.has(t))
       .map(([type, label]) => {
-        const all = found.filter((x) => x.place.type === type);
+        const all = found.filter((x) => groupOf(x.place) === type);
         return {
           type,
           label,
@@ -202,6 +212,7 @@ Examples:
       })
       .filter((g) => g.total > 0);
     const shown = groups.flatMap((g) => g.places);
+    const vet = nearest24(ctx, scope.center);
     const data = {
       ...envelope,
       center: scope.center,
@@ -210,6 +221,8 @@ Examples:
       ...(widenedFrom != null ? { radius_widened_from: widenedFrom } : {}),
       total: found.length,
       groups,
+      // The nearest 24-hour emergency vet (R-29): where to go if the day goes wrong.
+      ...(vet ? { vet } : {}),
       ...(shown.some((s) => s.osm) ? { attribution: OSM_ATTRIBUTION } : {}),
     };
     return result(data, format, () => {
@@ -229,6 +242,7 @@ Examples:
         );
         lines.push(...g.places.map(summaryLine));
       }
+      if (vet) lines.push("", "## Nearest 24-hour emergency vet", "", vetLine(vet), "Call ahead; not medical advice.");
       lines.push(...ctx.citations.footer(shown, { osmLine: OSM_ATTRIBUTION }));
       const text = lines.join("\n");
       return text.length <= LIMITS.resultCharacters

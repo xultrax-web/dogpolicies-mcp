@@ -2,7 +2,7 @@ import * as z from "zod/v4";
 import { READ_ONLY } from "../../core/server.mjs";
 import { nearestOnLine } from "../../core/geo.mjs";
 import { evaluateHotel, feeLine } from "../vendor/match.mjs";
-import { STATE_NAME, isStay } from "../stay.mjs";
+import { STATE_NAME, isAnyKind, isStay } from "../stay.mjs";
 import { forMatcher } from "./find-hotels.mjs";
 import {
   ListOutput,
@@ -36,6 +36,8 @@ import {
   positionOf,
   servesDirection,
 } from "../i5.mjs";
+import { CARD_URI } from "../ui/trip-card.mjs";
+import { nearest24, vetLine } from "./vets.mjs";
 
 /**
  * What people call each route: "I-5", "I5", "Interstate 5", "101", "Highway 101",
@@ -107,6 +109,8 @@ export const routeStops = (ctx) => {
   return {
     name: "dogpolicies_route_stops",
     title: "Dog stops along a highway",
+    // The trip card (MCP Apps, R-27): hosts that support it draw it beside this answer.
+    ui: { resourceUri: CARD_URI },
     since: "0.1.0",
     cache: true,
     // Closed rest areas come from a live feed: an answer holds five minutes.
@@ -248,7 +252,7 @@ Examples:
           )
         : route.stops.filter((x) => x.mile >= lo && x.mile <= hi);
       if (args.kinds)
-        stops = stops.filter((x) => args.kinds.includes(x.place.type));
+        stops = stops.filter((x) => isAnyKind(x.place, args.kinds));
       if (args.dog_friendly_only)
         stops = stops.filter((x) => x.place.status !== "no");
       if (args.family) stops = stops.filter((x) => isFamilyStop(x.place));
@@ -328,13 +332,16 @@ Examples:
       const familyNote = args.family
         ? " A family stop states restrooms and a pet area or dog park in its official source."
         : "";
+      const ends = [page[0], page[page.length - 1]].filter((p) => p?.geo);
+      const vets = [...new Map(ends.map((p) => nearest24(ctx, p.geo)).filter(Boolean).map((v) => [v.id, v])).values()];
+      const vetNote = vets.length ? `\n\nNearest 24-hour emergency vet${vets.length > 1 ? "s" : ""} to this stretch: ${vets.map(vetLine).join("; ")}. Call ahead; not medical advice.` : "";
       return listResponse(ctx, {
         format: args.response_format,
         total: rows.length,
         offset: args.offset,
         items: page,
         key: "stops",
-        header: `# ${rows.length} ${args.family ? "family " : "dog "}stops on ${route.short} in ${STATE_NAME[route.state]}, miles ${Math.round(lo)}–${Math.round(hi)} heading ${bound}${axis ? ` (s ${Math.round(startS).toLocaleString("en-US")} m from San Ysidro at the start)` : ""}${familyNote}${closedNote}${
+        header: `# ${rows.length} ${args.family ? "family " : "dog "}stops on ${route.short} in ${STATE_NAME[route.state]}, miles ${Math.round(lo)}–${Math.round(hi)} heading ${bound}${axis ? ` (s ${Math.round(startS).toLocaleString("en-US")} m from San Ysidro at the start)` : ""}${familyNote}${closedNote}${vetNote}${
           paired
             ? `\n\n## ${paired.length} paired stops in the window\n\n${paired.map(pairLine).join("\n") || "(none)"}\n\nExit numbers, names and people-stop counts are OpenStreetMap data (ODbL, © OpenStreetMap contributors); restrooms at a people-stop are not verified.`
             : ""
@@ -351,6 +358,8 @@ Examples:
               }
             : {}),
           ...(paired ? { paired_stops: paired } : {}),
+          // The nearest 24-hour emergency vets to the start and the end of this stretch (R-29).
+          ...(vets.length ? { vets } : {}),
         },
       });
     },

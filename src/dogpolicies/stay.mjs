@@ -7,6 +7,13 @@ export const STAY = {
 };
 export const isStay = (p) => Object.hasOwn(STAY, p.type);
 
+// Whether a place is of a kind: its own type, or one of the other kinds it also
+// is (alsoTypes on the record: a campground that also rents cabins). Every
+// filter by kind, on the site and in the tools, asks this.
+export const isKind = (p, kind) =>
+  p.type === kind || (p.alsoTypes?.includes(kind) ?? false);
+export const isAnyKind = (p, kinds) => kinds.some((k) => isKind(p, k));
+
 export const STATE_NAME = { CA: "California", NV: "Nevada" };
 export const STATES = ["CA", "NV"];
 

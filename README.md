@@ -2,7 +2,7 @@
 
 **[dogpolicies.com](https://dogpolicies.com/)** · Verified dog rules for California and Nevada travel: hotel pet fees, trip plans, highway stops. [Install guide and example](https://dogpolicies.com/mcp/about/) · [Status](https://dogpolicies.com/status/)
 
-DogPolicies answers dog-travel questions for California and Nevada, and every fact it returns carries its official source (an agency page or the business's own published policy) and the date it was checked; Nevada coverage is still thin. It does the work a web page cannot: the pet-fee arithmetic for a specific dog, day-by-day trip plans, highway stops in driving order with Caltrans conditions on I-5 right now, what changed since a date, and corrections a person checks.
+DogPolicies answers dog-travel questions for California and Nevada, and every fact it returns carries its official source (an agency page or the business's own published policy) and the date it was checked; Nevada coverage is still thin. It does the work a web page cannot: the pet-fee arithmetic for a specific dog, day-by-day trip plans, highway stops in driving order with Caltrans conditions right now, the nearest 24-hour emergency vet on the way, what changed since a date, and corrections a person checks. In Claude and ChatGPT a trip, a town or a drive also comes back as a card in the chat.
 
 **Listed in Claude's connector directory** since November 4, 2026: [add DogPolicies in Claude](https://claude.ai/directory/dogpolicies) with nothing to install. Also on npm and in the [official MCP Registry](https://registry.modelcontextprotocol.io/v0/servers?search=io.github.xultrax-web/dogpolicies-mcp). DogPolicies is independent and not affiliated with Anthropic.
 
@@ -70,7 +70,11 @@ The tools, by the job they do. Every one except `dogpolicies_report_correction` 
 
 A rest area Caltrans reports closed right now carries `closed_now` (Caltrans' reason and end time) in `route_stops`, `i5_corridor` and `plan_trip`, and is never offered as the next stop.
 
-- `dogpolicies_road_conditions`: Caltrans chain controls, lane and ramp closures, road weather and sign messages right now on I-80, US-50, I-15 and I-5 in California (Donner Summit, Echo Summit, Cajon Pass, the Grapevine), by route, town or named stretch, each at its route mile beside the nearest dog stop. Live state, not rules; Nevada roads are not covered; it needs the network.
+- `dogpolicies_road_conditions`: Caltrans chain controls, lane and ramp closures, road weather and sign messages right now on I-80, US-50, I-15, I-5 and US-395 in California (Donner Summit, Echo Summit, Cajon Pass, the Grapevine, the Eastern Sierra past Mammoth Lakes), by route, town or named stretch, each at its route mile beside the nearest dog stop. Live state, not rules; Nevada roads are not covered; it needs the network.
+
+### Emergency
+
+- `dogpolicies_emergency_vet`: the nearest 24-hour and emergency animal hospitals to a town, place or point, nearest first, each with its phone, address, hours, distance in a straight line and the hospital's own page as the source. `open_24h_only` keeps the 24-hour ones; when none is within the radius it still names the nearest 24-hour hospital at any distance. Where and when only, never medical advice. `dogpolicies_near` and `dogpolicies_plan_trip` add the nearest 24-hour hospital as `vet`, and `dogpolicies_route_stops` adds `vets` for the start and end of the stretch.
 
 ### Change
 
@@ -97,6 +101,7 @@ A rest area Caltrans reports closed right now carries `closed_now` (Caltrans' re
 - Starts with a citation sentence and ends with `DogPolicies, dogpolicies.com, CC BY 4.0, verified {date}`. Every record carries `confidence` (stated, inferred_from_agency, inherited_brand), `freshness` (fresh, due, stale, unreadable), `verified_at`, `url` and `source_urls`. A fact the source does not state is listed as not stated, never filled in.
 - Plain words work as arguments: "hotel", "NB", "Motel 6" or "yes" are read as the value the schema wants and labeled `resolved_from`. An argument that still does not fit comes back as `outcome: "bad_input"` with what is accepted, not a protocol error; a question the data cannot answer is `no_match` with `did_you_mean`, `nearest` and `next`. `isError` means the server itself failed or refused a write (`rate_limited`).
 - Markdown by default, structured JSON with `response_format: "json"`, and an output schema on every tool. The full reference, generated from the code: [docs/tools.md](docs/tools.md).
+- A card in the chat: `dogpolicies_plan_trip`, `dogpolicies_near`, `dogpolicies_route_stops` and `dogpolicies_emergency_vet` declare an MCP Apps view, `ui://dogpolicies/trip-card` (`_meta.ui.resourceUri`). Claude and ChatGPT draw the result as a card with a dot map from the records' own coordinates, each stop's dog rule in one line and links to each place's page. The card is one HTML file with no outside requests; the data comes in the tool result. Other clients get the same text answer as before.
 - Resources attach a record without a tool call: `dogpolicies://place/{id}`, `brand/{id}`, `answer/{slug}`, `route/{id}` and `area/{id}` (with completion), plus `dogpolicies://about`, `answers`, `status` and `corridor/i-5`. Prompts for the slash menu: `plan_dog_trip`, `check_hotel_for_dog`, `road_trip_with_dog`, `drive_i5_with_dog`, `what_can_my_dog_do_here`, `cite_a_rule`.
 
 ## Not using MCP?

@@ -128,6 +128,20 @@ export function createToolServer({
       // The title also goes in the annotations: directories (Claude's among
       // them) read annotations.title for the listing.
       annotations: { title: tool.title, ...tool.annotations },
+      // MCP Apps (io.modelcontextprotocol/ui, R-27): the view a host draws beside this tool's
+      // answer. The flat "ui/resourceUri" key is the specification's older spelling, kept for
+      // hosts that read only it. Clients without MCP Apps ignore _meta.
+      ...(tool.ui
+        ? {
+            _meta: {
+              ui: {
+                resourceUri: tool.ui.resourceUri,
+                ...(tool.ui.visibility ? { visibility: tool.ui.visibility } : {}),
+              },
+              "ui/resourceUri": tool.ui.resourceUri,
+            },
+          }
+        : {}),
     };
     server.registerTool(tool.name, config, handler);
     // The old names, for clients configured before a rename.
@@ -150,12 +164,22 @@ export function createToolServer({
       description: r.description,
       mimeType: r.mimeType,
       cacheHint: r.cacheHint,
+      // An MCP Apps view's security and border settings, on the listing too so a host can review them
+      // at connect time (the specification prefers the read result; hosts check both).
+      ...(r.uiMeta ? { _meta: { ui: r.uiMeta } } : {}),
     };
     const contents = async (uri, vars) => {
       const got = await r.read(vars ?? {}, uri);
       if (!got) throw new Error(`Resource not found: ${uri.href}`);
       return {
-        contents: [{ uri: uri.href, mimeType: r.mimeType, text: got.text }],
+        contents: [
+          {
+            uri: uri.href,
+            mimeType: r.mimeType,
+            text: got.text,
+            ...(r.uiMeta ? { _meta: { ui: r.uiMeta } } : {}),
+          },
+        ],
       };
     };
     if (r.template) {

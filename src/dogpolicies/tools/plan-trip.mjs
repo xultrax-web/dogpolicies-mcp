@@ -3,7 +3,7 @@ import { READ_ONLY } from "../../core/server.mjs";
 import { result } from "../../core/result.mjs";
 import { LIMITS } from "../../config.mjs";
 import { evaluateHotel, feeLine } from "../vendor/match.mjs";
-import { isStay } from "../stay.mjs";
+import { isAnyKind, isStay } from "../stay.mjs";
 import {
   MAX_DAYS,
   placeRef,
@@ -41,6 +41,8 @@ import {
 } from "../i5.mjs";
 import { closedNowOf, closuresFor } from "./conditions-source.mjs";
 import { closureLine } from "../vendor/closures.mjs";
+import { CARD_URI } from "../ui/trip-card.mjs";
+import { nearest24, vetLine } from "./vets.mjs";
 
 // A trip within this many miles of I-5 in California gets the corridor leg.
 const I5_REACH_MILES = 10;
@@ -68,6 +70,8 @@ const OUTINGS = [
 export const planTrip = (ctx) => ({
   name: "dogpolicies_plan_trip",
   title: "Plan a trip with a dog",
+  // The trip card (MCP Apps, R-27): hosts that support it draw it beside this answer.
+  ui: { resourceUri: CARD_URI },
   since: "0.2.0",
   cache: true,
   // The I-5 leg skips rest areas Caltrans reports closed (a live feed): an answer holds five minutes.
@@ -241,7 +245,7 @@ Examples:
     const counts = { match: 0, possible: 0, excluded: 0 };
     const rank = { match: 0, possible: 1 };
     const ranked = found
-      .filter((x) => isStay(x.place) && args.stay_types.includes(x.place.type))
+      .filter((x) => isStay(x.place) && isAnyKind(x.place, args.stay_types))
       .map((x) => ({ ...x, r: evaluateHotel(forMatcher(x.place), criteria) }))
       .filter((x) => {
         counts[x.r.verdict]++;
@@ -432,6 +436,7 @@ Examples:
             ),
         ]
       : [];
+    const vet = nearest24(ctx, scope.center);
     const data = {
       ...ctx.citations.envelope(ctx.graph.as_of),
       label: scope.label,
@@ -451,6 +456,8 @@ Examples:
       trip_url: savedUrl,
       outings,
       i5,
+      // The nearest 24-hour emergency vet to the destination (R-29).
+      ...(vet ? { vet } : {}),
       ...(empty
         ? {
             outcome: "no_match",
@@ -491,6 +498,7 @@ Examples:
           "",
           "No beaches, parks, trails or patios with dog rules in the data near here yet.",
         );
+      if (vet) lines.push("", "## Nearest 24-hour emergency vet", "", vetLine(vet), "Call ahead; not medical advice.");
       if (empty)
         lines.push(
           ...suggestionLines({ did_you_mean: nearby, next: emptyNext }),

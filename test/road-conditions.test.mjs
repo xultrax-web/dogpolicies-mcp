@@ -357,7 +357,7 @@ test("road_conditions: on I-5 the I-5 tool's own document serves when the host h
   );
 });
 
-test("road_conditions: the ways people name the four routes", () => {
+test("road_conditions: the ways people name the five routes", () => {
   const cases = {
     "I-80": "i-80",
     "i-80": "i-80",
@@ -371,6 +371,9 @@ test("road_conditions: the ways people name the four routes", () => {
     15: "i-15",
     "I-5": "i-5",
     I5: "i-5",
+    "US 395": "us-395",
+    "Highway 395": "us-395",
+    395: "us-395",
   };
   for (const [asked, id] of Object.entries(cases))
     assert.equal(roadOf(asked).id, id, asked);
@@ -397,11 +400,12 @@ test("road_conditions: the ways people name the four routes", () => {
     "i-15",
     "i-5",
     "i-80",
+    "us-395",
     "us-50",
   ]);
 });
 
-test("road_conditions: a highway the loop does not follow is no_match with the four it does, never isError", () =>
+test("road_conditions: a highway the loop does not follow is no_match with the five it does, never isError", () =>
   withClient(async (client) => {
     const r = await call(client, "dogpolicies_road_conditions", {
       route: "US-101",
@@ -415,6 +419,7 @@ test("road_conditions: a highway the loop does not follow is no_match with the f
       "i-15",
       "i-5",
       "i-80",
+      "us-395",
       "us-50",
     ]);
     assert.ok(s.next.some((n) => /dogpolicies_route_stops/.test(n)));

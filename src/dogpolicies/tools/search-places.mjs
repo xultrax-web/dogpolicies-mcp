@@ -31,6 +31,7 @@ import {
   parseQuery,
   placeText as hay,
 } from "./query-words.mjs";
+import { isAnyKind } from "../stay.mjs";
 
 const TYPES = [
   "lodging",
@@ -105,7 +106,7 @@ Examples:
     const run = (textPred, kinds, dogsImplied, offLeashImplied = false) => {
       let items = ctx.graph.places.filter(textPred);
       const types = type ? [type] : kinds;
-      if (types?.length) items = items.filter((p) => types.includes(p.type));
+      if (types?.length) items = items.filter((p) => isAnyKind(p, types));
       const dogs = dogs_allowed ?? (dogsImplied ? true : undefined);
       if (dogs === true)
         items = items.filter((p) =>

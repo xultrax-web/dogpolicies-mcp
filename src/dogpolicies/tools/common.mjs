@@ -106,6 +106,10 @@ export function summary(p, today, extra = {}) {
     uid: p.uid,
     name: p.name,
     type: p.type,
+    // Other kinds it also is: a campground that also rents cabins.
+    ...(p.alsoTypes ? { also_types: p.alsoTypes } : {}),
+    // Where it is (0.6.0): the trip card draws its map from these.
+    ...(p.geo ? { geo: { lat: Math.round(p.geo.lat * 1e4) / 1e4, lon: Math.round(p.geo.lon * 1e4) / 1e4 } } : {}),
     city: p.city,
     county: p.county,
     state: p.state,

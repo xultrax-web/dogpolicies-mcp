@@ -10,6 +10,39 @@ The data inside the package has its own date (`as_of` in every result). A
 new package version ships a new snapshot; the server also refreshes from the
 site on its own when the network allows.
 
+## 0.6.0 - 2026-11-20
+
+The winter release (`docs/RELEASE-0.6.md` in the data repository: R-27, R-28, R-29). A trip comes back as a card in
+the chat, the nearest emergency vet is on every route, and the Sierra in snow has its own records.
+
+Added
+
+- `dogpolicies_emergency_vet`: the nearest 24-hour and emergency animal hospitals to a town, place or point, nearest
+  first, each with `phone`, `address`, `hours`, `emergency` (`24_7` or `emergency_hours`), `distance_miles` in
+  a straight line, `source_url` and `verified_at`. Inputs `place`, `near`, `radius_miles` (default 60, up to
+  200), `open_24h_only`, `limit` and `response_format`. When none is within the radius the outcome is `no_match`
+  and `nearest_24h` still names the nearest 24-hour hospital at any distance. Every answer carries `caveat`: where
+  and when, not medical advice. 106 hospitals in the data (96 open 24 hours), each read on its own page.
+- `vet` on `dogpolicies_near` and `dogpolicies_plan_trip`, and `vets` on `dogpolicies_route_stops` (the
+  nearest 24-hour hospital to the first and last stop), with a line in the text answer.
+- A card in the chat (MCP Apps): `dogpolicies_plan_trip`, `dogpolicies_near`, `dogpolicies_route_stops` and
+  `dogpolicies_emergency_vet` declare `_meta.ui.resourceUri: ui://dogpolicies/trip-card` (and the older
+  `_meta["ui/resourceUri"]`). The resource is `text/html;profile=mcp-app`, one file with no outside requests and an
+  empty CSP allow-list; it draws a dot map from the records' coordinates, each stop's rule in one line and links that
+  open through the host. Clients without MCP Apps get the same text answer.
+- `also_types` and `geo` (rounded to 4 decimals) on place summaries: a campground that also rents cabins is found
+  by a cabins search (decision 130).
+- `dogpolicies_road_conditions` covers US-395 in California (Caltrans districts 8, 9 and 2: Hesperia past Bishop and
+  Mammoth Lakes to the Nevada line, and the north end to Oregon).
+
+Data
+
+- 4,262 places, 29 of them new: 13 California Sno-Parks with their national forest's dog rule
+  (`inferred_from_agency`: the Sno-Park program states none), four snow-play and cross-country places near Lake
+  Tahoe and 12 snow-trip lodgings at Lake Tahoe, Mammoth Lakes and in Alpine County with their pet fees.
+- New answers in `dogpolicies_browse_answers`: dogs in the snow near Lake Tahoe, the Sno-Parks that allow dogs,
+  snow-trip lodging cheapest for one dog over two nights, cabins in Alpine County and stays near Grover Hot Springs.
+
 ## 0.5.1 - 2026-11-10
 
 The connector icon is the close-up face of the homepage dog on its dark-green tile, the same picture as the

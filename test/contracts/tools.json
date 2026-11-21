@@ -766,6 +766,63 @@
     "since": "0.5.0",
     "deprecated": null
   },
+  "dogpolicies_emergency_vet": {
+    "title": "Nearest emergency vet",
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    },
+    "input": {
+      "required": [],
+      "properties": [
+        "limit",
+        "near",
+        "open_24h_only",
+        "place",
+        "radius_miles",
+        "response_format"
+      ]
+    },
+    "output": {
+      "required": [
+        "as_of",
+        "attribution_text",
+        "attribution_url",
+        "caveat",
+        "center",
+        "label",
+        "license",
+        "radius_miles",
+        "total",
+        "vets"
+      ],
+      "properties": [
+        "accepted",
+        "as_of",
+        "attribution_text",
+        "attribution_url",
+        "caveat",
+        "center",
+        "code",
+        "did_you_mean",
+        "label",
+        "license",
+        "message",
+        "nearest",
+        "nearest_24h",
+        "next",
+        "outcome",
+        "radius_miles",
+        "resolved_from",
+        "total",
+        "vets"
+      ]
+    },
+    "since": "0.6.0",
+    "deprecated": null
+  },
   "dogpolicies_get_rule": {
     "title": "Get one rule by id",
     "annotations": {

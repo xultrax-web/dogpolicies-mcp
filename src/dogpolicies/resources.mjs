@@ -13,6 +13,7 @@
 
 import { BRAND, PACKAGE_NAME, PACKAGE_VERSION } from "../config.mjs";
 import { tools } from "./tools/index.mjs";
+import { cardResource } from "./ui/trip-card.mjs";
 
 const TEXT = "text/markdown";
 const JSON_TYPE = "application/json";
@@ -39,6 +40,8 @@ const rank = (candidates, value) => {
 };
 
 export const resources = (ctx) => [
+  // The trip card, an MCP Apps view (R-27).
+  cardResource(PACKAGE_VERSION),
   {
     name: "about",
     uri: "dogpolicies://about",

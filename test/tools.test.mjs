@@ -12,6 +12,7 @@ const NAMES = [
   "dogpolicies_changes_near",
   "dogpolicies_changes_since",
   "dogpolicies_compare_places",
+  "dogpolicies_emergency_vet",
   "dogpolicies_find_hotels",
   "dogpolicies_get_brand_policy",
   "dogpolicies_get_place",
