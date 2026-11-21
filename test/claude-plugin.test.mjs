@@ -10,7 +10,12 @@ import { call, text, withClient } from "./helpers.mjs";
 import { EXAMPLES } from "../src/dogpolicies/tools/examples.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
-const PLUGIN = join(here, "..", "..", "claude-plugin");
+// Two layouts: the data repository keeps the plugin beside the package (packages/claude-plugin); the public
+// repository is the package itself with the plugin inside it (claude-plugin/, published by sync-public).
+const PLUGIN = [join(here, "..", "claude-plugin"), join(here, "..", "..", "claude-plugin")].find((p) =>
+  existsSync(join(p, ".claude-plugin", "plugin.json")),
+);
+if (!PLUGIN) throw new Error("claude-plugin folder not found beside or inside the package");
 const json = (...p) => JSON.parse(readFileSync(join(...p), "utf8"));
 const serverJson = json(here, "..", "server.json");
 
