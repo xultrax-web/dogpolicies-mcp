@@ -3,6 +3,7 @@
 // (near, plan_trip, route_stops). Only where, when and the phone number: never medical advice.
 
 import { miles } from "../../core/geo.mjs";
+import { upcomingHolidays } from "./common.mjs";
 
 /** The site page that lists every hospital with its source and checked date. */
 export const vetPageUrl = (ctx, id) => `${ctx.graph.site.url.replace(/\/+$/, "")}/emergency-vets/${id ? `#${id}` : ""}`;
@@ -23,6 +24,10 @@ export function vetItem(ctx, v, distance) {
     emergency: v.emergency,
     ...(v.hours ? { hours: v.hours } : {}),
     ...(v.note ? { note: v.note } : {}),
+    // Hours on a named day that has not passed, from the hospital's own page.
+    ...(upcomingHolidays(v.holidays, ctx.today()).length
+      ? { holiday_hours: upcomingHolidays(v.holidays, ctx.today()) }
+      : {}),
     ...(distance != null ? { distance_miles: Math.round(distance * 10) / 10 } : {}),
     verified_at: v.verified_at,
     source_url: v.source_url,
@@ -57,7 +62,7 @@ export const serviceText = (v) => (v.emergency === "24_7" ? "open 24 hours, ever
 
 /** One line for a tool's text answer. */
 export const vetLine = (v) =>
-  `**${v.name}**, ${v.address}, ${v.city}, ${v.state} · ${v.phone} · ${serviceText(v)}${v.distance_miles != null ? ` · ${v.distance_miles} mi away (straight line)` : ""}${v.note ? ` · ${v.note}` : ""}`;
+  `**${v.name}**, ${v.address}, ${v.city}, ${v.state} · ${v.phone} · ${serviceText(v)}${v.distance_miles != null ? ` · ${v.distance_miles} mi away (straight line)` : ""}${v.note ? ` · ${v.note}` : ""}${(v.holiday_hours ?? []).map((h) => ` · ${h.holiday ?? h.date}: ${h.open ? `open${h.hours ? `, ${h.hours}` : ""}` : "closed"}`).join("")}`;
 
 /** The closing line every vet answer carries. */
 export const VET_CAVEAT =

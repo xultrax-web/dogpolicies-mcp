@@ -33,8 +33,33 @@ export const ROAD_CONDITIONS_ROUTES = {
     number: "395",
     covers: "Hesperia past Bishop and Mammoth Lakes to the Nevada line, and the north end from the Nevada line to Oregon",
   },
+  // The Lake Tahoe highways (0.6.0): California only, Caltrans districts 3, 9 and 10 (and 2 for SR-89's north end).
+  "sr-89": {
+    number: "89",
+    covers:
+      "Monitor Pass past Markleeville, Luther Pass, Meyers, Emerald Bay and Tahoe City to Truckee, and on north to Mount Shasta",
+  },
+  "sr-28": {
+    number: "28",
+    covers: "Tahoe City past Dollar Hill and Kings Beach to the Nevada line at Stateline",
+  },
+  "sr-267": {
+    number: "267",
+    covers: "Truckee past Northstar and Brockway Summit to Kings Beach (its miles run southeast)",
+  },
+  "sr-88": {
+    number: "88",
+    covers: "Stockton over Carson Pass past Kirkwood and Hope Valley to the Nevada line",
+  },
 };
+// SR-267's miles run from Truckee southeast to Kings Beach, so Caltrans' "South" is its increasing way.
+const INCREASES_SOUTH = new Set(["sr-267"]);
 export const QUICKMAP_URL = "https://quickmap.dot.ca.gov/";
+/** Nevada 511, Nevada DOT's own page for Nevada roads (its data feed needs a registered key, so it is linked, not read). */
+export const NEVADA_511_URL = "https://www.nvroads.com/";
+// Tahoe-area highways that are Nevada's (or Nevada's end of a road that crosses the line): the answer links Nevada 511.
+const NEVADA_ROADS =
+  /\b(207|431|kingsbury|mt\.? rose|mount rose|incline village|spooner|zephyr cove|glenbrook|carson city|crystal bay)\b/;
 export const conditionsPathFor = (id) =>
   id === "i-5" ? CONDITIONS_PATH : `/api/v1/conditions/${id}.json`;
 
@@ -55,10 +80,16 @@ export function roadOf(text) {
         (k) => ROAD_CONDITIONS_ROUTES[k].number === String(Number(digits)),
       )
     : null;
-  if (id && OUTSIDE.test(s.replace(/-/g, " ")))
-    return { miss: "outside", digits, near: id };
+  const flat = s.replace(/-/g, " ");
+  const nevada = NEVADA_ROADS.test(flat) || /\b(nevada|nv)\b/.test(flat);
+  if (id && (OUTSIDE.test(flat) || NEVADA_ROADS.test(flat)))
+    return { miss: "outside", digits, near: id, ...(nevada ? { nevada } : {}) };
   if (id) return { id };
-  return { miss: digits ? "uncovered" : "unread", digits };
+  return {
+    miss: digits ? "uncovered" : "unread",
+    digits,
+    ...(nevada ? { nevada } : {}),
+  };
 }
 
 /** The covered routes, those whose number starts like the asked one first. */
@@ -92,37 +123,46 @@ const words = (s) =>
     .split(" ")
     .filter((w) => w.length >= 3 && !GENERIC.has(w));
 
-/** A named stretch of the route's guide ("Donner Pass" -> "Donner Pass and Truckee", miles 170-204), or null. */
-export function findStretch(route, text) {
+/** The route's stretch that best fits the text, with how well: { st, rank } (100 for the whole phrase in its name, else the words it shares), or null. */
+function stretchMatch(route, text) {
   const q = norm(text).replace(/\s+/g, " ").trim();
   const all = route?.stretches ?? [];
   if (!q || !all.length) return null;
   const whole = q.length >= 4 && all.find((st) => norm(st.name).includes(q));
-  if (whole) return whole;
+  if (whole) return { st: whole, rank: 100 };
   const asked = words(q);
   if (!asked.length) return null;
   let best = null;
   for (const st of all) {
     const hits = words(st.name).filter((w) => asked.includes(w)).length;
-    if (hits && (!best || hits > best.hits)) best = { st, hits };
+    if (hits && (!best || hits > best.rank)) best = { st, rank: hits };
   }
-  return best?.st ?? null;
+  return best;
+}
+
+/** A named stretch of the route's guide ("Donner Pass" -> "Donner Pass and Truckee", miles 170-204), or null. */
+export function findStretch(route, text) {
+  return stretchMatch(route, text)?.st ?? null;
 }
 
 // North and east mean increasing route miles; south and west, decreasing.
-const AHEAD_WORDS = new Set(["northbound", "eastbound"]);
-const BACK_WORDS = new Set(["southbound", "westbound"]);
-const travelOf = (direction) =>
+// Except on a route whose miles run south (SR-267, Truckee to Kings Beach): there south and east are ahead.
+const wordsFor = (id) =>
+  INCREASES_SOUTH.has(id)
+    ? { ahead: ["south", "east"], back: ["north", "west"] }
+    : { ahead: ["north", "east"], back: ["south", "west"] };
+const travelOf = (direction, id) =>
   direction == null
     ? null
-    : ["north", "east"].includes(direction)
+    : wordsFor(id).ahead.includes(direction)
       ? "ahead"
       : "back";
-const serves = (item, travel) => {
+const serves = (item, travel, id) => {
   if (!travel) return true;
   const d = item.direction;
-  if (AHEAD_WORDS.has(d)) return travel === "ahead";
-  if (BACK_WORDS.has(d)) return travel === "back";
+  const w = wordsFor(id);
+  if (w.ahead.some((x) => `${x}bound` === d)) return travel === "ahead";
+  if (w.back.some((x) => `${x}bound` === d)) return travel === "back";
   return true; // "both", or a direction the feed did not give
 };
 const round1 = (n) => Math.round(n * 10) / 10;
@@ -197,9 +237,9 @@ export const roadConditions = (ctx) => {
     title: "Road conditions now: closures, chains, weather",
     since: "0.5.0",
     cache: false,
-    description: `Do I need chains on I-80 to Tahoe right now? Is US-50 open over Echo Summit? Caltrans chain controls, lane and ramp closures, road-weather stations and message-sign text on I-80 (San Francisco to the Nevada line), US-50 (West Sacramento to Stateline), I-15 (San Diego to Primm) and I-5 in California, each at its route mile with the nearest dog stop.
-Live state, not rules: Caltrans feed data fetched every 15 minutes (fetched_at in the result), never a verified fact. For the day of a mountain or desert drive: Donner Summit, Echo Summit, Cajon Pass, the Grapevine. It reports conditions, not places to stop: each condition carries only the nearest dog stop. Nevada roads and other highways are not covered.
-Inputs: route ("I-80", "80", "US 50", "Highway 50", "I-15", "I-5"); a window as from_mile and to_mile, or town (a town or named stretch on the route: Truckee, Donner Pass, South Lake Tahoe, Placerville, Cajon Pass, Barstow) with direction and ahead_miles; direction alone keeps that direction's closures, signs and chain controls. With no window, the whole route in California.
+    description: `Do I need chains on I-80 to Tahoe right now? Is US-50 open over Echo Summit? Is Highway 89 closed at Emerald Bay? Caltrans chain controls, lane and ramp closures, road-weather stations and message-sign text on I-80, US-50, I-15, I-5, US-395 and the Lake Tahoe highways SR-89, SR-28, SR-267 and SR-88, in California, each at its route mile with the nearest dog stop.
+Live state, not rules: Caltrans feed data fetched every 15 minutes (fetched_at in the result), never a verified fact. For the day of a mountain or desert drive: Donner Summit, Echo Summit, Cajon Pass, the Grapevine. It reports conditions, not places to stop: each condition carries only the nearest dog stop. Nevada roads (SR-207, SR-431) are not covered: the answer links Nevada 511.
+Inputs: route ("I-80", "80", "US 50", "Highway 89", "SR 28", "I-5"); a window as from_mile and to_mile, or town (a town or named stretch on the route: Truckee, Donner Pass, Emerald Bay, Brockway, South Lake Tahoe, Cajon Pass, Barstow) with direction and ahead_miles; direction alone keeps that direction's closures, signs and chain controls. With no window, the whole route in California.
 chain_controls_in_effect is true when a Caltrans chain-control point in the window reports a control (any status but R-0), with Caltrans' own wording; a sign that mentions chains is listed under signs with its text. Each weather station says whether its reading is current (the feeds sometimes carry readings months old; those numbers are left out of the text). A document older than two hours is marked stale; when no document can be read the answer has outcome unavailable and the address of Caltrans QuickMap, the live map.
 
 Examples:
@@ -212,7 +252,7 @@ Examples:
         .min(1)
         .max(60)
         .describe(
-          'The highway in California: "I-80", "80", "US 50", "Highway 50", "I-15" or "I-5"',
+          'The highway in California: "I-80", "US 50", "Highway 89", "SR 28", "SR-267", "Highway 88", "I-15", "I-5" or "US 395"; a stretch name ("Emerald Bay") works too',
         ),
       from_mile: num()
         .min(0)
@@ -346,16 +386,15 @@ Examples:
       let id = asked.id ?? null;
       let stretchFromRoute = null;
       if (!id && asked.miss === "unread") {
-        // "Donner Pass", "Cajon Pass": the one covered route with a stretch of that name.
+        // "Donner Pass", "Cajon Pass", "Emerald Bay": the one covered route whose stretch fits best (the
+        // whole phrase beats a shared word: "Emerald Bay" is SR-89's, though I-80 has an East Bay stretch).
         const hits = Object.keys(ROAD_CONDITIONS_ROUTES)
-          .map((rid) => ({
-            rid,
-            st: findStretch(ctx.graph.routes[rid], args.route),
-          }))
-          .filter((x) => x.st);
-        if (hits.length === 1) {
+          .map((rid) => ({ rid, m: stretchMatch(ctx.graph.routes[rid], args.route) }))
+          .filter((x) => x.m)
+          .sort((a, b) => b.m.rank - a.m.rank);
+        if (hits.length && (hits.length === 1 || hits[0].m.rank > hits[1].m.rank)) {
           id = hits[0].rid;
-          stretchFromRoute = hits[0].st;
+          stretchFromRoute = hits[0].m.st;
         }
       }
       if (!id || !ctx.graph.routes[id]) {
@@ -364,13 +403,20 @@ Examples:
           asked.digits,
           asked.near,
         );
+        const covered = did_you_mean.map((r) => r.road).join(", ");
+        const nevadaNote = `Nevada's roads are Nevada DOT's: Nevada 511 (${NEVADA_511_URL}) shows its chain controls, closures and cameras. Its data feed needs a registered key, so this server links it and does not read it.`;
         const message =
           asked.miss === "outside"
-            ? `"${args.route}" is outside California. Road conditions here come from Caltrans' feeds, so they stop at the state line; ${ctx.graph.routes[asked.near]?.short ?? asked.near} in California is covered.`
-            : `Live road conditions cover I-80, US-50, I-15 and I-5 in California; "${args.route}" is not one of them. Caltrans QuickMap (${QUICKMAP_URL}) shows every state highway.`;
+            ? `"${args.route}" is outside California. Road conditions here come from Caltrans' feeds, so they stop at the state line; ${ctx.graph.routes[asked.near]?.short ?? asked.near} in California is covered.${asked.nevada ? ` ${nevadaNote}` : ""}`
+            : asked.nevada
+              ? `"${args.route}" is a Nevada road, and live road conditions here come from Caltrans' California feeds. ${nevadaNote}`
+              : `Live road conditions cover ${covered} in California; "${args.route}" is not one of them. Caltrans QuickMap (${QUICKMAP_URL}) shows every state highway.`;
         const next = [
           ...(asked.near
             ? [`route="${asked.near}" reads the California part`]
+            : []),
+          ...(asked.nevada
+            ? [`Nevada 511 for Nevada roads: ${NEVADA_511_URL}`]
             : []),
           "For dog stops along any listed highway, dogpolicies_route_stops",
           `Caltrans QuickMap for any other California highway: ${QUICKMAP_URL}`,
@@ -400,7 +446,9 @@ Examples:
       const road = route.short;
       const length = route.length_miles;
       const conditionsUrl = `${site()}${conditionsPathFor(id)}`;
-      const guide = `${site()}/road-trips/${id}/`;
+      // US-395 and the Lake Tahoe highways have conditions and no road-trip page.
+      const guide =
+        route.has_guide === false ? null : `${site()}/road-trips/${id}/`;
       const base = (extra = {}) =>
         empty({
           route: id,
@@ -411,7 +459,7 @@ Examples:
         });
 
       // ---- The window ----
-      const travel = travelOf(args.direction);
+      const travel = travelOf(args.direction, id);
       let window = null;
       const clamp = (m) => Math.min(length, Math.max(0, m));
       if (args.from_mile != null || args.to_mile != null) {
@@ -612,17 +660,17 @@ Examples:
           (!window ||
             (Math.max(c.mileBegin, c.mileEnd) >= window.from_mile &&
               Math.min(c.mileBegin, c.mileEnd) <= window.to_mile)) &&
-          serves(c, travel),
+          serves(c, travel, id),
       );
       const weather = (doc.weather ?? [])
         .filter((w) => inWindow(w.mile))
         .map((w) => ({ ...w, ...readingAge(w, doc.fetchedAt) }));
       const currentWeather = weather.filter((w) => w.current);
       const signs = (doc.signs ?? []).filter(
-        (x) => inWindow(x.mile) && serves(x, travel),
+        (x) => inWindow(x.mile) && serves(x, travel, id),
       );
       const points = (doc.chainControls ?? []).filter(
-        (x) => inWindow(x.mile) && serves(x, travel),
+        (x) => inWindow(x.mile) && serves(x, travel, id),
       );
       const inEffect = points.filter((c) => c.inEffect);
       const chainSigns = signs.filter((s) => s.chains);
@@ -735,7 +783,7 @@ Examples:
               ]
             : []),
           "",
-          `Source: ${doc.source?.publisher ?? "Caltrans"}, ${doc.source?.portal ?? ""}. Conditions of use read ${doc.source?.terms?.checked ?? "?"}. Live map: ${QUICKMAP_URL}. This document: ${conditionsUrl}. Dog stops by mile: ${guide}`,
+          `Source: ${doc.source?.publisher ?? "Caltrans"}, ${doc.source?.portal ?? ""}. Conditions of use read ${doc.source?.terms?.checked ?? "?"}. Live map: ${QUICKMAP_URL}. This document: ${conditionsUrl}.${guide ? ` Dog stops by mile: ${guide}` : ""}`,
           ctx.citations.line(ctx.graph.as_of),
         ];
         const text = lines.join("\n");

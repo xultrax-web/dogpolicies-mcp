@@ -52,11 +52,16 @@ if (!existsSync(join(TO, ".git"))) {
   process.exit(2);
 }
 
-// 1. Only committed files of the package, never the working tree.
-const files = git(ROOT, "ls-files", "--", "packages/mcp")
+// 1. Only committed files of the package and the Claude plugin, never the working tree. The plugin
+// (packages/claude-plugin) is published as claude-plugin/ in the public repository, the folder the
+// directory's plugin submission points at (decision 136).
+const PLUGIN = "packages/claude-plugin/";
+const files = git(ROOT, "ls-files", "--", "packages/mcp", "packages/claude-plugin")
   .split("\n")
   .filter(Boolean);
-const outside = files.filter((f) => !f.startsWith("packages/mcp/"));
+const outside = files.filter(
+  (f) => !f.startsWith("packages/mcp/") && !f.startsWith(PLUGIN),
+);
 if (outside.length)
   refuse(
     `files outside the package would be included:\n  ${outside.join("\n  ")}`,
@@ -120,7 +125,13 @@ for (const entry of readdirSync(TO)) {
   rmSync(join(TO, entry), { recursive: true, force: true });
 }
 for (const f of files) {
-  const rel = relative("packages/mcp", f).split("/").join(sep);
+  const rel = (
+    f.startsWith(PLUGIN)
+      ? `claude-plugin/${f.slice(PLUGIN.length)}`
+      : relative("packages/mcp", f)
+  )
+    .split("/")
+    .join(sep);
   const dest = join(TO, rel);
   mkdirSync(dirname(dest), { recursive: true });
   copyFileSync(join(ROOT, f), dest);

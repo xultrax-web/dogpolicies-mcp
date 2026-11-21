@@ -10,6 +10,17 @@ The data inside the package has its own date (`as_of` in every result). A
 new package version ships a new snapshot; the server also refreshes from the
 site on its own when the network allows.
 
+## Unreleased
+
+Changed
+
+- A call that arrives without what the tool needs is still an answer (`outcome: bad_input`, never `isError`), and now
+  carries one working example call: `Example: dogpolicies_get_place {"id":"carmel-beach"}`. `dogpolicies_search_places`
+  and `dogpolicies_find_hotels` called with no arguments at all say what they need instead of listing the whole data
+  set; a call with `limit`, `offset` or any filter searches as before.
+- Three descriptions say what the tool is not for, without naming another tool (`search_places`, `find_hotels`,
+  `plan_trip`).
+
 ## 0.6.0 - 2026-11-20
 
 The winter release (`docs/RELEASE-0.6.md` in the data repository: R-27, R-28, R-29). A trip comes back as a card in
@@ -33,7 +44,10 @@ Added
 - `also_types` and `geo` (rounded to 4 decimals) on place summaries: a campground that also rents cabins is found
   by a cabins search (decision 130).
 - `dogpolicies_road_conditions` covers US-395 in California (Caltrans districts 8, 9 and 2: Hesperia past Bishop and
-  Mammoth Lakes to the Nevada line, and the north end to Oregon).
+  Mammoth Lakes to the Nevada line, and the north end to Oregon), and the Lake Tahoe highways SR-89 (Monitor Pass,
+  Luther Pass, Emerald Bay, Tahoe City, Truckee), SR-28, SR-267 and SR-88 (Carson Pass), read from the same Caltrans
+  pass; a stretch name ("Emerald Bay", "Brockway") finds its route. A Nevada road (SR-207, SR-431) is a `no_match`
+  that links Nevada 511, whose data feed needs a registered key (decision 145).
 
 Data
 

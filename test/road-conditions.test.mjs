@@ -357,7 +357,7 @@ test("road_conditions: on I-5 the I-5 tool's own document serves when the host h
   );
 });
 
-test("road_conditions: the ways people name the five routes", () => {
+test("road_conditions: the ways people name the nine routes", () => {
   const cases = {
     "I-80": "i-80",
     "i-80": "i-80",
@@ -387,6 +387,7 @@ test("road_conditions: the ways people name the five routes", () => {
     miss: "outside",
     digits: "80",
     near: "i-80",
+    nevada: true,
   });
   assert.equal(roadOf("Donner Pass").miss, "unread");
   // Caltrans writes reading times in California time; the feed's own epoch agrees.
@@ -400,12 +401,16 @@ test("road_conditions: the ways people name the five routes", () => {
     "i-15",
     "i-5",
     "i-80",
+    "sr-267",
+    "sr-28",
+    "sr-88",
+    "sr-89",
     "us-395",
     "us-50",
   ]);
 });
 
-test("road_conditions: a highway the loop does not follow is no_match with the five it does, never isError", () =>
+test("road_conditions: a highway the loop does not follow is no_match with the nine it does, never isError", () =>
   withClient(async (client) => {
     const r = await call(client, "dogpolicies_road_conditions", {
       route: "US-101",
@@ -419,6 +424,10 @@ test("road_conditions: a highway the loop does not follow is no_match with the f
       "i-15",
       "i-5",
       "i-80",
+      "sr-267",
+      "sr-28",
+      "sr-88",
+      "sr-89",
       "us-395",
       "us-50",
     ]);
@@ -541,3 +550,192 @@ test("road_conditions: a closure end no Date can hold reads 'end not set', never
     assert.doesNotMatch(md, /until null|Invalid/);
   }, testRuntime({ roadConditions: async (route) => (route === "i-80" ? doc : null) }));
 });
+
+// ---- The Lake Tahoe highways (0.6.0): SR-89, SR-28, SR-267 and SR-88 ----
+
+// A district-3 chain control point as the loop writes it (worker/conditions-core.mjs).
+const cc = (id, mile, name, direction, status, extra = {}) => ({
+  id,
+  kind: "chain_control",
+  mile,
+  name,
+  direction,
+  status,
+  statusText:
+    status === "R-0"
+      ? "No chain controls are in effect at this time."
+      : "Chains are required on all vehicles except four wheel drive vehicles with snow tires on all four wheels.",
+  inEffect: status !== "R-0",
+  statusAt: "2026-11-21T12:53:03",
+  nearestStop: null,
+  ...extra,
+});
+const tahoeDoc = (route, fetchedAt, extra = {}) => ({
+  schema: "dogpolicies-conditions/1",
+  route,
+  state: "CA",
+  fetchedAt,
+  notice:
+    "Conditions are Caltrans feed data fetched at fetchedAt, placed by route mile. They are not verified facts and not rules; check Caltrans QuickMap (quickmap.dot.ca.gov) before you go.",
+  source: {
+    publisher: "California Department of Transportation (Caltrans)",
+    portal: "https://cwwp2.dot.ca.gov/",
+    terms: { checked: "2026-11-04" },
+  },
+  errors: [],
+  closures: [],
+  weather: [],
+  signs: [],
+  chainControls: [],
+  ...extra,
+});
+
+test("road_conditions: the Lake Tahoe highways by the names people use, and Nevada's roads link Nevada 511", () => {
+  const cases = {
+    "Highway 89": "sr-89",
+    "SR 89": "sr-89",
+    "SR-28": "sr-28",
+    "State Route 267": "sr-267",
+    "Route 88": "sr-88",
+    "Highway 88": "sr-88",
+    267: "sr-267",
+  };
+  for (const [asked, id] of Object.entries(cases))
+    assert.equal(roadOf(asked).id, id, asked);
+  // The same number in Nevada, and Nevada's own Tahoe roads, are Nevada DOT's.
+  assert.equal(roadOf("SR 28 Nevada").miss, "outside");
+  assert.equal(roadOf("SR 28 Nevada").near, "sr-28");
+  assert.equal(roadOf("SR 28 Incline Village").miss, "outside");
+  assert.equal(roadOf("Highway 207").miss, "uncovered");
+  assert.equal(roadOf("Highway 207").nevada, true);
+  assert.equal(roadOf("Kingsbury Grade").nevada, true);
+  assert.equal(roadOf("Mt Rose Highway").nevada, true);
+  assert.equal(roadOf("Highway 99").nevada, undefined);
+  // A stretch name alone is "unread" here; the tool finds its route by the stretch.
+  assert.equal(roadOf("Emerald Bay").miss, "unread");
+});
+
+test("road_conditions: Emerald Bay is a stretch of SR-89 and answers with its chain controls, not Luther Pass's", async () => {
+  const doc = tahoeDoc("sr-89", minutesAgo(6), {
+    closures: [
+      {
+        id: "lcs_T89WG",
+        kind: "closure",
+        mileBegin: 0.2,
+        mileEnd: 7.6,
+        direction: "both",
+        facility: "Mainline",
+        type: "Full",
+        work: "Winter Closure Gate",
+        where: "Monitor Pass",
+        endEpoch: null,
+        indefinite: true,
+        nearestStop: null,
+      },
+    ],
+    chainControls: [
+      cc("cc_3_luther", 36.9, "Luther Pass", "northbound", "R-0"),
+      cc("cc_3_ebrights", 55, "Ebrights", "northbound", "R-2"),
+      cc("cc_3_emerald", 57, "Emerald Bay", "northbound", "R-2"),
+      cc("cc_3_bliss_s", 61.3, "Bliss State Park", "southbound", "R-2"),
+      cc("cc_3_tahoe", 78.1, "Tahoe City", "northbound", "R-0"),
+    ],
+  });
+  await withClient(
+    async (client) => {
+      const json = async (args) =>
+        (
+          await call(client, "dogpolicies_road_conditions", {
+            ...args,
+            response_format: "json",
+          })
+        ).structuredContent;
+      // The stretch alone names the route and the window.
+      const bay = await json({ route: "Emerald Bay" });
+      assert.equal(bay.route, "sr-89");
+      assert.equal(bay.road, "SR-89");
+      assert.equal(bay.window.stretch.name, "Emerald Bay");
+      assert.deepEqual(
+        bay.chain_controls.map((c) => c.name).sort(),
+        ["Bliss State Park", "Ebrights", "Emerald Bay"],
+      );
+      assert.equal(bay.chain_controls_in_effect, true);
+      assert.deepEqual(bay.closures, [], "the Monitor Pass gate is 50 miles off");
+      assert.match(bay.conditions_url, /\/api\/v1\/conditions\/sr-89\.json$/);
+      assert.equal(bay.guide, null, "SR-89 has conditions and no road-trip page");
+      // With a town and a direction the window runs ahead of it.
+      const north = await json({
+        route: "Highway 89",
+        town: "Emerald Bay",
+        direction: "north",
+      });
+      assert.ok(north.chain_controls.every((c) => c.direction !== "southbound"));
+      assert.ok(north.chain_controls.some((c) => c.name === "Emerald Bay"));
+      // The winter gate at Monitor Pass, by its stretch.
+      const monitor = await json({ route: "SR-89", town: "Monitor Pass" });
+      assert.deepEqual(
+        monitor.closures.map((c) => c.id),
+        ["lcs_T89WG"],
+      );
+      const md = text(
+        await call(client, "dogpolicies_road_conditions", { route: "89" }),
+      );
+      assert.match(md, /^# SR-89 conditions, all of SR-89 in California: CHAIN CONTROLS IN EFFECT/);
+      assert.doesNotMatch(md, /Dog stops by mile/);
+    },
+    testRuntime({ roadConditions: roads({ "sr-89": doc }) }),
+  );
+});
+
+test("road_conditions: SR-267's miles run south, so south is ahead on it and Caltrans' South points the same way", async () => {
+  const doc = tahoeDoc("sr-267", minutesAgo(4), {
+    chainControls: [
+      cc("cc_3_airport", 2.1, "Truckee Airport Rd", "southbound", "R-2"),
+      cc("cc_3_kb", 10.5, "Kings Beach", "northbound", "R-2"),
+    ],
+  });
+  await withClient(
+    async (client) => {
+      const json = async (args) =>
+        (
+          await call(client, "dogpolicies_road_conditions", {
+            route: "SR-267",
+            ...args,
+            response_format: "json",
+          })
+        ).structuredContent;
+      const south = await json({ town: "Brockway", direction: "south", ahead_miles: 20 });
+      assert.equal(south.window.stretch.name, "Brockway Summit");
+      assert.ok(south.window.from_mile >= 6.5, JSON.stringify(south.window));
+      const all = await json({ direction: "south" });
+      assert.deepEqual(all.chain_controls.map((c) => c.name), ["Truckee Airport Rd"]);
+      const north = await json({ direction: "north" });
+      assert.deepEqual(north.chain_controls.map((c) => c.name), ["Kings Beach"]);
+      // On a route that runs north or east the same words keep their old meaning (I-80 eastbound).
+    },
+    testRuntime({ roadConditions: roads({ "sr-267": doc }) }),
+  );
+});
+
+test("road_conditions: a Nevada Tahoe road is no_match with Nevada 511's address, and Nevada's key is said, not hidden", () =>
+  withClient(async (client) => {
+    for (const route of ["Kingsbury Grade", "Highway 431", "SR 28 Nevada"]) {
+      const r = await call(client, "dogpolicies_road_conditions", {
+        route,
+        response_format: "json",
+      });
+      assert.ok(!r.isError, route);
+      const s = r.structuredContent;
+      assert.equal(s.outcome, "no_match", route);
+      assert.match(s.message, /Nevada 511 \(https:\/\/www\.nvroads\.com\/\)/, route);
+      assert.match(s.message, /needs a registered key/, route);
+      assert.ok(s.next.some((n) => /nvroads\.com/.test(n)), route);
+    }
+    // A California road that is not covered does not send people to Nevada.
+    const ca = await call(client, "dogpolicies_road_conditions", {
+      route: "Highway 99",
+      response_format: "json",
+    });
+    assert.doesNotMatch(ca.structuredContent.message, /nvroads/);
+    assert.match(ca.structuredContent.message, /SR-89/);
+  }));

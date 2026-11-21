@@ -6,6 +6,7 @@
 // satisfies the tool's output schema with empty lists and zero counts.
 
 import { answer } from "./common.mjs";
+import { exampleCall } from "./examples.mjs";
 
 // Enum values that claim nothing, preferred when an empty answer must fill an enum field.
 const NEUTRAL_ENUM_VALUES = new Set(["unknown", "unspecified", "not_stated", "unstated", "none"]);
@@ -145,11 +146,13 @@ export function invalidInput(ctx) {
         problems.push(text);
       }
     }
+    const example = exampleCall(tool.name);
     const message = `These arguments cannot be used as given: ${problems.join(" ")}`;
     const next = [
       ...Object.entries(accepted).map(
         ([k, v]) => `${k} takes: ${v.join(", ")}`,
       ),
+      ...(example ? [`Example: ${example}`] : []),
       `Call ${tool.name} again with corrected arguments; nothing was searched`,
     ];
     const format = args?.response_format === "json" ? "json" : "markdown";
@@ -174,4 +177,30 @@ export function invalidInput(ctx) {
       ].join("\n"),
     });
   };
+}
+
+/**
+ * The answer to a call that names nothing to look for (decision 136): what the tool needs, one example, and
+ * nothing searched. Used by the tools whose every argument is optional but whose empty call would only list
+ * the whole data set.
+ */
+export function emptyCall(ctx, tool, args, needs) {
+  const example = exampleCall(tool.name);
+  const message = `${tool.name} needs something to look for: ${needs}.`;
+  const next = [
+    ...(example ? [`Example: ${example}`] : []),
+    `Call ${tool.name} again with at least one of these; nothing was searched`,
+  ];
+  return answer({
+    outcome: "bad_input",
+    code: "invalid",
+    message,
+    shape: {
+      ...emptyOf(tool.outputSchema),
+      ...ctx.citations.envelope(ctx.graph.as_of),
+    },
+    next,
+    format: args?.response_format === "json" ? "json" : "markdown",
+    text: ["# Nothing to look for yet", "", message, "", ...next.map((n) => `- ${n}`)].join("\n"),
+  });
 }

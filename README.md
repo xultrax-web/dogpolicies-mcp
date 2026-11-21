@@ -70,7 +70,7 @@ The tools, by the job they do. Every one except `dogpolicies_report_correction` 
 
 A rest area Caltrans reports closed right now carries `closed_now` (Caltrans' reason and end time) in `route_stops`, `i5_corridor` and `plan_trip`, and is never offered as the next stop.
 
-- `dogpolicies_road_conditions`: Caltrans chain controls, lane and ramp closures, road weather and sign messages right now on I-80, US-50, I-15, I-5 and US-395 in California (Donner Summit, Echo Summit, Cajon Pass, the Grapevine, the Eastern Sierra past Mammoth Lakes), by route, town or named stretch, each at its route mile beside the nearest dog stop. Live state, not rules; Nevada roads are not covered; it needs the network.
+- `dogpolicies_road_conditions`: Caltrans chain controls, lane and ramp closures, road weather and sign messages right now on I-80, US-50, I-15, I-5 and US-395 in California (Donner Summit, Echo Summit, Cajon Pass, the Grapevine, the Eastern Sierra past Mammoth Lakes) and the Lake Tahoe highways SR-89 (Emerald Bay, Luther Pass), SR-28, SR-267 and SR-88 (Carson Pass), by route, town or named stretch, each at its route mile beside the nearest dog stop. Live state, not rules; Nevada roads are not covered (the answer links Nevada 511); it needs the network.
 
 ### Emergency
 

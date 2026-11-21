@@ -28,6 +28,16 @@ function vetRecord(v) {
     emergency: v.emergency,
     hours: v.hours,
     note: v.note,
+    // Hours on a named day, each with the page it came from (decision 139).
+    holidays: v.holidays?.map((h) =>
+      clean({
+        date: h.date,
+        holiday: h.holiday,
+        open: h.open,
+        hours: h.hours,
+        source_url: v.sources[h.source].url,
+      }),
+    ),
     corridors: v.corridors,
     verified_at: v.verifiedAt,
     source_url: v.sources.site.url,
@@ -271,10 +281,11 @@ export function gazetteerTowns(graph) {
  * @param {Function} deps.ruleJson
  * @param {Array} deps.answers from getAnswers(graph)
  * @param {object} deps.routeGuides ROUTE_GUIDES
+ * @param {object} [deps.routeExtras] CONDITIONS_ROUTE_EXTRAS: heading and named stretches of routes without a guide
  * @param {object} [deps.axes] per route id, the axis block (src/lib/axis-snapshot.mjs)
  */
 export function buildSnapshot(graph, deps) {
-  const { site, answers, routeGuides, axes = {} } = deps;
+  const { site, answers, routeGuides, routeExtras = {}, axes = {} } = deps;
   const regionName = Object.fromEntries(
     graph.regions.map((r) => [r.id, r.name]),
   );
@@ -299,12 +310,16 @@ export function buildSnapshot(graph, deps) {
     brands: graph.brands.map((b) => brandRecord(b, ctx)),
     // Emergency animal hospitals (R-29, 0.6.0): where and when, from each hospital's own page.
     vets: (graph.vets ?? []).map(vetRecord),
-    answers: answers.map((a) => ({
-      slug: a.slug,
-      question: a.question,
-      intro: a.intro ?? "",
-      place_ids: a.items.map((p) => p.id),
-    })),
+    // An answer whose items are emergency hospitals (the Lake Tahoe holiday
+    // vets question) has no places to list; the emergency_vet tool serves them.
+    answers: answers
+      .filter((a) => !a.vets)
+      .map((a) => ({
+        slug: a.slug,
+        question: a.question,
+        intro: a.intro ?? "",
+        place_ids: a.items.map((p) => p.id),
+      })),
     routes: Object.fromEntries(
       Object.entries(graph.routes).map(([id, r]) => [
         id,
@@ -313,12 +328,14 @@ export function buildSnapshot(graph, deps) {
           short: r.short,
           state: r.state,
           length_miles: r.lengthMiles,
-          heading: routeGuides[id]?.heading === "east" ? "east" : "north",
+          // Whether a road-trip page exists at /road-trips/<id>/ (US-395 and the Lake Tahoe highways have none).
+          has_guide: Boolean(routeGuides[id]),
+          heading: (routeGuides[id]?.heading ?? routeExtras[id]?.heading) === "east" ? "east" : "north",
           // The guide's named stretches ("Donner Pass and Truckee", miles 170-204),
           // for the tools that take a stretch by name (0.5.0).
-          ...(routeGuides[id]?.highlights?.length
+          ...((routeGuides[id]?.highlights ?? routeExtras[id]?.stretches)?.length
             ? {
-                stretches: routeGuides[id].highlights.map((h) => ({
+                stretches: (routeGuides[id]?.highlights ?? routeExtras[id].stretches).map((h) => ({
                   name: h.name,
                   from_mile: h.fromMile,
                   to_mile: h.toMile,

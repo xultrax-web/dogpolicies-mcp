@@ -33,6 +33,7 @@ import {
 } from "./query-words.mjs";
 import { isAnyKind } from "../stay.mjs";
 
+const MEALS = ["breakfast", "brunch", "lunch", "dinner"];
 const TYPES = [
   "lodging",
   "campground",
@@ -51,8 +52,8 @@ export const searchPlaces = (ctx) => ({
   since: "0.1.0",
   cache: true,
   description: `Can my dog go to this place, or which parks, beaches, trails, campgrounds or patios allow dogs: "Can I bring my dog to Point Lobos?", "state parks in Marin that allow dogs", "off-leash beaches near San Diego"?
-Answers for one named place or a filtered list of one kind; each result's id names the place's full record, with every rule and source.
-Inputs: query (name, city or brand; words like "cabins", "hikes", "wineries" or "dog friendly hotels in Carmel" are read as the kind and the place), type (lodging, campground incl. RV parks, cabins, beach, park, trail, restaurant, rest_area, stop; "hotel", "dog park" or "hike" are read as these), dogs_allowed, off_leash, state "CA" or "NV", county without "County", area (lake-tahoe, big-sur, east-bay), or near={lat, lon}.
+Answers for one named place or a filtered list of one kind; each result's id names the place's full record, with every rule and source. It is not a roundup of everything dog-friendly in a town, a hotel fee calculation, or a road report.
+Inputs: query (name, city or brand; words like "cabins", "hikes", "wineries" or "dog friendly hotels in Carmel" are read as the kind and the place), type (lodging, campground incl. RV parks, cabins, beach, park, trail, restaurant, rest_area, stop; "hotel", "dog park" or "hike" are read as these), dogs_allowed, off_leash, meal (breakfast, brunch, lunch or dinner: restaurants that state they serve it), open_on (a date, YYYY-MM-DD: restaurants whose own page says they are open that day, such as Thanksgiving), state "CA" or "NV", county without "County", area (lake-tahoe, big-sur, east-bay), or near={lat, lon}.
 Each result: yes, yes_restricted, no or varies, the rule in a sentence, verified date, URL and id. No match is an answer (outcome no_match) with did_you_mean, nearest and next. Nevada coverage is thin.
 
 Examples:
@@ -63,7 +64,9 @@ Examples:
   - "Off-leash dog parks in Las Vegas" -> type="park", off_leash=true, county="Clark", state="NV"
   - "RV parks in Fresno County that take dogs" -> type="campground", county="Fresno", dogs_allowed=true
   - "Dog-friendly cabins in June Lake" -> type="cabins", query="June Lake", dogs_allowed=true (query="June Lake cabins" works too)
-  - "Restaurants with a dog-friendly patio in Alameda" -> type="restaurant", query="Alameda"`,
+  - "Restaurants with a dog-friendly patio in Alameda" -> type="restaurant", query="Alameda"
+  - "Where can I take my dog to breakfast at Lake Tahoe?" -> type="restaurant", meal="breakfast", area="lake-tahoe", dogs_allowed=true
+  - "Lake Tahoe restaurants open on Thanksgiving that allow dogs" -> type="restaurant", open_on="2026-11-26", area="lake-tahoe", dogs_allowed=true`,
   inputSchema: z.strictObject({
     query: z
       .string()
@@ -86,6 +89,18 @@ Examples:
       .describe(
         "true: only places where the managing agency allows dogs off leash, at least at some times",
       ),
+    meal: choice(MEALS, {})
+      .optional()
+      .describe(
+        "Only restaurants and cafes whose own page states they serve this meal",
+      ),
+    open_on: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/)
+      .optional()
+      .describe(
+        "A day that has not passed (YYYY-MM-DD): only places whose own page gives hours for that day and says they are open",
+      ),
     ...locationSchema(ctx.graph),
     ...pageSchema,
   }),
@@ -96,6 +111,8 @@ Examples:
     type,
     dogs_allowed,
     off_leash,
+    meal,
+    open_on,
     limit,
     offset,
     response_format,
@@ -115,6 +132,15 @@ Examples:
       if (dogs === false) items = items.filter((p) => p.status === "no");
       if (off_leash ?? offLeashImplied)
         items = items.filter((p) => OFF_LEASH.has(p.facts.leash?.value));
+      if (meal)
+        items = items.filter((p) => p.facts.meals?.value.includes(meal));
+      // Hours for a day that has passed are never shown, so they never match.
+      if (open_on)
+        items = items.filter(
+          (p) =>
+            open_on >= today &&
+            p.facts.holidays?.value.some((h) => h.date === open_on && h.open),
+        );
       return filterByLocation(items, loc);
     };
     // The words as given first: a name that matches is never second-guessed.
@@ -255,6 +281,8 @@ Examples:
         type && `type=${type}`,
         dogs_allowed !== undefined && `dogs_allowed=${dogs_allowed}`,
         off_leash && "off_leash=true",
+        meal && `meal=${meal}`,
+        open_on && `open_on=${open_on}${open_on < today ? " (that day has passed)" : ""}`,
         loc.state && `state=${loc.state}`,
         loc.county && `county=${loc.county}`,
         loc.region && `region=${loc.region}`,
@@ -270,6 +298,8 @@ Examples:
         type && "Call again without type",
         (dogs_allowed !== undefined || off_leash) &&
           "Drop dogs_allowed or off_leash",
+        (meal || open_on) &&
+          "Drop meal or open_on: not every restaurant states its meals or its holiday hours",
         loc.near && `Widen near.radius_miles (now ${loc.near.radius_miles})`,
         (loc.county || loc.region || loc.area) &&
           "Try the neighboring county, or the region",

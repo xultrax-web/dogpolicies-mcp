@@ -97,7 +97,7 @@ export function readConfig({ env = process.env, overrides = {} } = {}) {
     // Public correction tickets for changes_since / changes_near, read by the hosted
     // Worker from its database: `async ({since, limit}) => ({items, total})`.
     corrections: overrides.corrections ?? null,
-    // The same for any route the conditions loop serves (I-5, I-80, US-50, I-15),
+    // The same for any route the conditions loop serves (I-5, I-80, US-50, I-15, US-395 and the Lake Tahoe highways),
     // for dogpolicies_road_conditions. `async (route) => doc | null`.
     roadConditions: overrides.roadConditions ?? null,
   };

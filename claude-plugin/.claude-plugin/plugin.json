@@ -1,0 +1,29 @@
+{
+  "name": "dogpolicies",
+  "displayName": "DogPolicies",
+  "version": "0.1.0",
+  "description": "Verified dog rules for California and Nevada travel: whether a place allows dogs, hotel pet fees and weight limits, trip plans, highway stops and emergency vets, each answer with its official source and the date it was checked.",
+  "author": {
+    "name": "Wesley New",
+    "email": "corrections@dogpolicies.com",
+    "url": "https://dogpolicies.com/"
+  },
+  "homepage": "https://dogpolicies.com/mcp/about/",
+  "repository": "https://github.com/xultrax-web/dogpolicies-mcp",
+  "license": "MIT",
+  "keywords": [
+    "dogs",
+    "pet friendly",
+    "travel",
+    "hotels",
+    "parks",
+    "beaches",
+    "California",
+    "Nevada"
+  ],
+  "icon": "./assets/logo.png",
+  "documentationUrl": "https://dogpolicies.com/mcp/about/",
+  "supportUrl": "https://dogpolicies.com/corrections/",
+  "privacyPolicyUrl": "https://dogpolicies.com/terms/#privacy",
+  "termsOfServiceUrl": "https://dogpolicies.com/terms/"
+}

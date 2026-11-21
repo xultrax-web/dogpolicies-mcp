@@ -217,6 +217,12 @@ export function createToolServer({
 async function runTool(tool, args, ctx) {
   if (!tool.invalidAnswer) return tool.handler(args, ctx);
   const raw = args && typeof args === "object" ? args : {};
+  // A tool with emptyAnswer says what it needs when called with nothing to go on (decision 136).
+  if (
+    tool.emptyAnswer &&
+    !Object.keys(raw).some((k) => k !== "response_format")
+  )
+    return tool.emptyAnswer(raw);
   const checked = await tool.inputSchema["~standard"].validate(raw);
   if (checked.issues?.length) return tool.invalidAnswer(checked.issues, raw, tool);
   return withResolved(

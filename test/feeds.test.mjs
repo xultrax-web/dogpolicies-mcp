@@ -225,7 +225,7 @@ test("entry ids are stable: same on every read and the same event has the same i
   // does not depend on the scope that lists it
   const g = sharedRuntime().graph;
   const news = g.events.find(
-    (e) => e.by === "business" || e.outcome !== "confirmed",
+    (e) => e.by === "business",
   );
   assert.ok(news, "the data has a business confirmation");
   const place = await json(`/feeds/changes/place/${news.placeId}.json`);

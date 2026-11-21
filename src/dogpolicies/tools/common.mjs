@@ -98,9 +98,23 @@ function leadCitation(p, lead) {
  * sentence leads answer and citation while a seasonal rule applies or starts
  * within 14 days.
  */
+/** A food business's holiday hours that have not passed on `today`, oldest first. */
+export function upcomingHolidays(holidays, today) {
+  return (holidays ?? [])
+    .filter((h) => h.date >= today)
+    .sort((a, b) => a.date.localeCompare(b.date))
+    .map((h) => ({
+      date: h.date,
+      ...(h.holiday ? { holiday: h.holiday } : {}),
+      open: h.open,
+      ...(h.hours ? { hours: h.hours } : {}),
+    }));
+}
+
 export function summary(p, today, extra = {}) {
   const seasonal = todayFor(p, today);
   const lead = seasonal?.sentence ?? null;
+  const holidays = upcomingHolidays(p.facts?.holidays?.value, today);
   return {
     id: p.id,
     uid: p.uid,
@@ -120,6 +134,10 @@ export function summary(p, today, extra = {}) {
     answer: lead ? `${lead} ${p.answer}` : p.answer,
     citation: lead ? leadCitation(p, lead) : p.citation,
     ...(seasonal ? { today: seasonal } : {}),
+    // Meals a food business says it serves, and its published hours on a named
+    // day that has not passed (decision 139).
+    ...(p.facts?.meals ? { meals: p.facts.meals.value } : {}),
+    ...(holidays.length ? { holiday_hours: holidays } : {}),
     brand_policy: p.brand_policy,
     confidence: p.confidence,
     confirmed_by: p.confirmed_by,
@@ -226,6 +244,12 @@ export const TodayBlock = z
   .describe(
     "Only for a place with seasonal dog rules (plover nesting season, summer beach hours): which applies on the server's date, until when, and which starts next, with the source. Repeat sentence with the answer.",
   );
+export const HolidayHoursItem = z.looseObject({
+  date: z.string().describe("The day the hours are for (YYYY-MM-DD)"),
+  holiday: z.string().optional().describe("The day's name as published"),
+  open: z.boolean().describe("false: the business or hospital says it is closed that day"),
+  hours: z.string().optional().describe("The hours as published"),
+});
 export const PlaceItem = z.looseObject({
   id: z.string(),
   uid: z.string().describe("Stable id that survives a rename"),
@@ -238,6 +262,14 @@ export const PlaceItem = z.looseObject({
       "The one-line answer; while a seasonal rule applies today it leads with it (see today)",
     ),
   today: TodayBlock.optional(),
+  meals: z
+    .array(z.enum(["breakfast", "brunch", "lunch", "dinner"]))
+    .optional()
+    .describe("Meals a restaurant or cafe says it serves"),
+  holiday_hours: z
+    .array(HolidayHoursItem)
+    .optional()
+    .describe("Hours the business publishes for a named day that has not passed"),
   citation: z
     .string()
     .describe(

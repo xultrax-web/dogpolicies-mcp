@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "dogpolicies": {
+      "type": "http",
+      "url": "https://dogpolicies.com/mcp/"
+    }
+  }
+}

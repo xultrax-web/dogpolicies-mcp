@@ -43,7 +43,7 @@ export const findHotels = (ctx) => ({
   since: "0.1.0",
   cache: true,
   description: `Will a hotel take my dog, and what will the pet fee come to: a 70 lb Lab under $50, two dogs for three nights near Palm Springs, the Motel 6 in Fresno?
-Does the weight, dog-count and fee arithmetic for the stay, hotel by hotel, against each hotel's published pet policy.
+Does the weight, dog-count and fee arithmetic for the stay, hotel by hotel, against each hotel's published pet policy. It answers for stays at specific hotels, not for a chain's policy in general, and it lists no other kind of place.
 Inputs: query (hotel name, city or brand), brand, county without "County", state "CA" or "NV", area (lake-tahoe, big-sur, east-bay), region, or near={lat, lon}; dog_weight_lb, dogs, nights, max_total_fee.
 Each hotel is a match, a possible (needs a call: case by case, weight unstated, "up to" fee) or excluded, with the arithmetic spelled out, the source URL and verified date. Amounts are pet fees, never room rates: there are no room prices here.
 

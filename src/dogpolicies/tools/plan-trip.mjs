@@ -77,7 +77,7 @@ export const planTrip = (ctx) => ({
   // The I-5 leg skips rest areas Caltrans reports closed (a live feed): an answer holds five minutes.
   cacheTtlMs: 5 * 60_000,
   description: `Plan a dog trip to a town: where can we stay with this dog, what is the pet fee for all the nights, what can we do each day, where can we eat?
-One answer covers a whole stay, such as "three nights in Monterey with our 70 lb Lab, pet fees under $150" or "camping near Mammoth Lakes".
+One answer covers a whole stay, such as "three nights in Monterey with our 70 lb Lab, pet fees under $150" or "camping near Mammoth Lakes". It plans a stay at one destination, not the stops along a drive.
 Inputs: place (a city, county, neighborhood, area or region, with small spelling slips corrected) or near={lat, lon}; dog_weight_lb, dogs, nights, max_total_fee, stay_types. Optional: start_date (dates each day), stay_id (build the plan on that stay), save=true (adds trip_url, a dogpolicies.com page showing the plan; the plan travels inside the link, nothing is stored).
 Returns stays that fit with the whole-stay pet fee worked out (a pet fee, never a room rate), stays that need a call to confirm, and "days": for each night the stay, a morning beach, trail or off-leash area, an afternoon park and a dinner patio, each a real record with source URL and verified date; a slot the data cannot fill is null with the reason (dinner often is). "plan_stay" shows the fee arithmetic and whether the dog's weight and number fit. Within 10 miles of I-5 in California it adds the drive leg: the town's mile and the next family stops each way. An unknown town is an answer with did_you_mean. The markdown answer is laid out as a trip document for the traveler.
 

@@ -4,7 +4,7 @@
 import * as z from "zod/v4";
 import { READ_ONLY } from "../../core/server.mjs";
 import { result } from "../../core/result.mjs";
-import { Envelope, OutcomeFields, formatSchema } from "./common.mjs";
+import { Envelope, HolidayHoursItem, OutcomeFields, formatSchema } from "./common.mjs";
 import { resolveScope, scopeAnswer, scopeSchema } from "./scope.mjs";
 import { flag } from "./tolerant.mjs";
 import { CARD_URI } from "../ui/trip-card.mjs";
@@ -21,6 +21,10 @@ const VetItem = z.looseObject({
   website: z.string(),
   emergency: z.enum(["24_7", "emergency_hours"]),
   hours: z.string().optional(),
+  holiday_hours: z
+    .array(HolidayHoursItem)
+    .optional()
+    .describe("Hours on a named day that has not passed, from the hospital's own page"),
   distance_miles: z.number().optional(),
   verified_at: z.string(),
   source_url: z.string(),
@@ -33,7 +37,7 @@ export const emergencyVet = (ctx) => ({
   cache: true,
   ui: { resourceUri: CARD_URI },
   description: `Where is the nearest 24-hour or emergency animal hospital to this town, landmark or point: "my dog ate something near Kettleman City", "emergency vet near South Lake Tahoe tonight"?
-Returns the nearest hospitals with address, phone number, whether they are open 24 hours every day or take emergencies in published hours, the straight-line distance, the hospital's own page and the date it was read. Mountain and desert stretches often have none close: the answer then names the nearest one anyway with its distance.
+Returns the nearest hospitals with address, phone number, whether they are open 24 hours every day or take emergencies in published hours, any hours the hospital publishes for an upcoming holiday such as Thanksgiving, the straight-line distance, the hospital's own page and the date it was read. Mountain and desert stretches often have none close: the answer then names the nearest one anyway with its distance.
 It gives where, when and the phone number only: never medical advice. Tell the traveler to call ahead.
 Inputs: place as people say it (a city, county, neighborhood, airport) or near={lat, lon}; radius_miles (default 60, up to 200); open_24h_only (default false).
 

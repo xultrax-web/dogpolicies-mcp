@@ -39,7 +39,7 @@ const [
   { ruleJson },
   { tagsOf },
   { site },
-  { ROUTE_GUIDES },
+  { ROUTE_GUIDES, CONDITIONS_ROUTE_EXTRAS },
   { buildSnapshot },
   { axisSnapshot },
 ] = await Promise.all([
@@ -64,6 +64,7 @@ const snapshot = buildSnapshot(graph, {
   ruleJson,
   answers: getAnswers(graph),
   routeGuides: ROUTE_GUIDES,
+  routeExtras: CONDITIONS_ROUTE_EXTRAS,
   axes: { "i-5": axisSnapshot(graph) },
 });
 const json = JSON.stringify(snapshot);
