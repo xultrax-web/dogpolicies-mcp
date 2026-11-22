@@ -8,6 +8,8 @@
 // The script inside is plain ES5-style JavaScript in a String.raw template, so it must contain no
 // backticks and no dollar-brace sequences.
 
+import { BASEMAP } from "./basemap-data.mjs";
+
 export const CARD_URI = "ui://dogpolicies/trip-card";
 export const CARD_MIME = "text/html;profile=mcp-app";
 
@@ -64,7 +66,19 @@ a.name:hover { text-decoration: underline; }
 .chip.vet { background: var(--dp-vet-bg); color: var(--dp-vet-fg); }
 .road { position: relative; padding-left: 4px; }
 .road li.item .mark { position: relative; }
-.map { display: block; width: 100%; height: auto; margin: 4px 0 6px; border-radius: var(--border-radius-md, 8px); background: var(--color-background-secondary, light-dark(#f6faf7, #16221d)); }
+.map { display: block; width: 100%; height: auto; margin: 4px 0 6px; border-radius: var(--border-radius-md, 8px); overflow: hidden; }
+.map .sea { fill: light-dark(#cfe2ea, #11262e); }
+.map .land { fill: light-dark(#f3efe4, #1c2520); }
+.map .water { fill: light-dark(#cfe2ea, #11262e); stroke: light-dark(#a9c7d4, #234350); stroke-width: .6; }
+.map .border { fill: none; stroke: light-dark(#a39b8c, #56635b); stroke-width: 1; stroke-dasharray: 5 3; }
+.map .road { fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.map .r1 { stroke: light-dark(#8a8274, #9aa69e); stroke-width: 2.4; }
+.map .r2 { stroke: light-dark(#a49c8d, #7f8b84); stroke-width: 1.7; }
+.map .r3 { stroke: light-dark(#bdb5a6, #5f6b64); stroke-width: 1.2; }
+.map .lbl { font-size: 11px; paint-order: stroke; stroke-width: 3px; stroke-linejoin: round; }
+.map .water-lbl { fill: light-dark(#3d6d80, #8fbccc); stroke: light-dark(#cfe2ea, #11262e); font-style: italic; }
+.map .road-lbl { fill: light-dark(#4a453c, #c9d2cc); stroke: light-dark(#f3efe4, #1c2520); font-weight: 600; font-size: 10px; }
+.map .center { stroke: light-dark(#0a1f17, #e6efe9); }
 .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
 button.act { font: inherit; font-size: 13px; font-weight: 600; border-radius: var(--border-radius-md, 8px); padding: 7px 12px; cursor: pointer; border: 1px solid var(--dp-accent); background: var(--dp-accent); color: light-dark(#ffffff, #0a1f17); }
 button.act.ghost { background: transparent; color: var(--dp-accent); }
@@ -78,6 +92,7 @@ button.act.ghost { background: transparent; color: var(--dp-accent); }
 <script>
 (function () {
   var VERSION = "${version}";
+  var BASE = ${JSON.stringify(BASEMAP)};
   var SITE = "https://dogpolicies.com/";
   var inHost = window.parent && window.parent !== window;
   var nextId = 0;
@@ -146,43 +161,156 @@ button.act.ghost { background: transparent; color: var(--dp-accent); }
   }
   function miles(d) { return d == null ? "" : (Math.round(d * 10) / 10) + " mi"; }
 
-  // A dot map from the records' own coordinates: no tiles, no outside requests.
+  // The map: land, water and highways from the U.S. Census Bureau (public domain), embedded in this card
+  // (BASE, from basemap-data.mjs), with the records' own places on top. No tiles, no outside request.
+  var decoded = null;
+  function decodeLine(s) {
+    var pts = [], i = 0, lat = 0, lon = 0, q = BASE.q;
+    var minx = 1e9, miny = 1e9, maxx = -1e9, maxy = -1e9;
+    while (i < s.length) {
+      var b, shift = 0, res = 0;
+      do { b = s.charCodeAt(i++) - 63; res |= (b & 31) << shift; shift += 5; } while (b >= 32);
+      lat += (res & 1) ? ~(res >> 1) : (res >> 1);
+      shift = 0; res = 0;
+      do { b = s.charCodeAt(i++) - 63; res |= (b & 31) << shift; shift += 5; } while (b >= 32);
+      lon += (res & 1) ? ~(res >> 1) : (res >> 1);
+      var y = lat / q, x = lon / q;
+      pts.push(x, y);
+      if (x < minx) minx = x;
+      if (x > maxx) maxx = x;
+      if (y < miny) miny = y;
+      if (y > maxy) maxy = y;
+    }
+    return { p: pts, b: [minx, miny, maxx, maxy] };
+  }
+  function base() {
+    if (decoded) return decoded;
+    function all(list, key) {
+      var out = [];
+      list.forEach(function (f) { f[key].forEach(function (s) { out.push({ f: f, g: decodeLine(s) }); }); });
+      return out;
+    }
+    decoded = { land: all(BASE.land, "r"), water: all(BASE.water, "r"), roads: all(BASE.roads, "l") };
+    return decoded;
+  }
+
   function dotMap(points, center) {
     var pts = points.filter(function (p) { return p && p.geo && typeof p.geo.lat === "number"; });
-    if (pts.length < 2) return null;
+    if (!pts.length || (pts.length < 2 && !center)) return null;
     var lats = pts.map(function (p) { return p.geo.lat; }), lons = pts.map(function (p) { return p.geo.lon; });
     if (center) { lats.push(center.lat); lons.push(center.lon); }
     var minLat = Math.min.apply(null, lats), maxLat = Math.max.apply(null, lats);
     var minLon = Math.min.apply(null, lons), maxLon = Math.max.apply(null, lons);
-    var k = Math.cos((minLat + maxLat) / 2 * Math.PI / 180);
-    var w = 600, h = 220, pad = 18;
-    var spanX = Math.max((maxLon - minLon) * k, 0.01), spanY = Math.max(maxLat - minLat, 0.01);
+    var midLat = (minLat + maxLat) / 2, midLon = (minLon + maxLon) / 2;
+    var k = Math.cos(midLat * Math.PI / 180);
+    var w = 600, h = 260, pad = 26;
+    // At least about 9 km of ground across, so a town's places sit in their surroundings.
+    var spanX = Math.max((maxLon - minLon) * k, 0.08), spanY = Math.max(maxLat - minLat, 0.03);
     var s = Math.min((w - 2 * pad) / spanX, (h - 2 * pad) / spanY);
-    var ox = (w - spanX * s) / 2, oy = (h - spanY * s) / 2;
-    function xy(lat, lon) { return [ox + (lon - minLon) * k * s, h - (oy + (lat - minLat) * s)]; }
+    function xy(lat, lon) { return [w / 2 + (lon - midLon) * k * s, h / 2 - (lat - midLat) * s]; }
+    var L = midLon - w / 2 / (k * s), R = midLon + w / 2 / (k * s), B = midLat - h / 2 / s, T = midLat + h / 2 / s;
+    function seen(bb) { return !(bb[2] < L || bb[0] > R || bb[3] < B || bb[1] > T); }
+    function d(p, close) {
+      var out = "";
+      for (var i = 0; i < p.length; i += 2) {
+        var q = xy(p[i + 1], p[i]);
+        out += (i ? "L" : "M") + q[0].toFixed(1) + " " + q[1].toFixed(1);
+      }
+      return close ? out + "Z" : out;
+    }
     var NS = "http://www.w3.org/2000/svg";
     var svg = document.createElementNS(NS, "svg");
     svg.setAttribute("viewBox", "0 0 " + w + " " + h);
     svg.setAttribute("class", "map");
     svg.setAttribute("role", "img");
-    svg.setAttribute("aria-label", "Map of the places listed below");
+    svg.setAttribute("aria-label", "Map of the places listed below, with the coast, lakes and highways");
+    function add(tag, attrs) {
+      var n = document.createElementNS(NS, tag);
+      for (var a in attrs) if (attrs.hasOwnProperty(a)) n.setAttribute(a, attrs[a]);
+      svg.appendChild(n);
+      return n;
+    }
+    function layer(path, cls) { if (path) add("path", { d: path, "class": cls }); }
+    var g = base();
+    add("rect", { x: 0, y: 0, width: w, height: h, "class": "sea" });
+    var land = "", border = "", water = "", lakes = [];
+    g.land.forEach(function (x) {
+      if (!seen(x.g.b)) return;
+      var p = d(x.g.p, true);
+      land += p;
+      if (x.f.s !== "CA") border += p;
+    });
+    layer(land, "land");
+    g.water.forEach(function (x) {
+      if (!seen(x.g.b)) return;
+      water += d(x.g.p, true);
+      if (x.f.a >= 8) lakes.push(x);
+    });
+    layer(water, "water");
+    layer(border, "border");
+    var shields = [];
+    [3, 2, 1].forEach(function (kind) {
+      var path = "";
+      g.roads.forEach(function (x) {
+        if (x.f.k !== kind || !seen(x.g.b)) return;
+        path += d(x.g.p, false);
+        if (!x.f.n) return;
+        // Where to name the road: the middle of its part inside the frame.
+        var inside = [];
+        for (var i = 0; i < x.g.p.length; i += 2) {
+          var q = xy(x.g.p[i + 1], x.g.p[i]);
+          if (q[0] > 40 && q[0] < w - 40 && q[1] > 16 && q[1] < h - 10) inside.push(q);
+        }
+        if (inside.length) shields.push({ n: x.f.n, k: kind, pts: inside, len: inside.length });
+      });
+      layer(path, "road r" + kind);
+    });
+    // Labels stay clear of each other and of the places' dots.
+    var labels = [];
+    var dots = pts.map(function (p) { return xy(p.geo.lat, p.geo.lon); });
+    if (center) dots.push(xy(center.lat, center.lon));
+    function free(at, half) {
+      for (var i = 0; i < labels.length; i++) if (Math.abs(labels[i][0] - at[0]) < labels[i][2] + half + 6 && Math.abs(labels[i][1] - at[1]) < 16) return false;
+      for (var j = 0; j < dots.length; j++) if (Math.abs(dots[j][0] - at[0]) < half + 8 && dots[j][1] - at[1] < 12 && at[1] - dots[j][1] < 20) return false;
+      return true;
+    }
+    function label(text, at, cls) {
+      var half = text.length * 3.2;
+      if (!free(at, half)) return false;
+      labels.push([at[0], at[1], half]);
+      var t = add("text", { x: at[0].toFixed(1), y: at[1].toFixed(1), "class": cls, "text-anchor": "middle" });
+      t.textContent = text;
+      return true;
+    }
+    lakes.sort(function (a, b) { return b.f.a - a.f.a; });
+    var named = {};
+    lakes.forEach(function (x) {
+      if (named[x.f.n] || Object.keys(named).length >= 2) return;
+      var at = xy((x.g.b[1] + x.g.b[3]) / 2, (x.g.b[0] + x.g.b[2]) / 2);
+      if (at[0] < 50 || at[0] > w - 50 || at[1] < 18 || at[1] > h - 8) return;
+      named[x.f.n] = 1;
+      label(x.f.n, at, "lbl water-lbl");
+    });
+    shields.sort(function (a, b) { return a.k - b.k || b.len - a.len; });
+    var done = {};
+    shields.forEach(function (x) {
+      if (done[x.n] || Object.keys(done).length >= 4) return;
+      // Try the middle of the road's part in the frame first, then points either side of it.
+      var order = [0.5, 0.35, 0.65, 0.2, 0.8, 0.1, 0.9];
+      for (var i = 0; i < order.length; i++) {
+        if (label(x.n, x.pts[Math.floor((x.pts.length - 1) * order[i])], "lbl road-lbl")) { done[x.n] = 1; return; }
+      }
+    });
     var COLOR = { yes: "#0f6b47", yes_restricted: "#c98a12", no: "#b3261e", vet: "#6a4fc0" };
     if (center) svg.setAttribute("data-center", "1");
     if (center) {
       var c = xy(center.lat, center.lon);
-      var ring = document.createElementNS(NS, "circle");
-      ring.setAttribute("cx", c[0]); ring.setAttribute("cy", c[1]); ring.setAttribute("r", 7);
-      ring.setAttribute("fill", "none"); ring.setAttribute("stroke", "currentColor"); ring.setAttribute("stroke-width", 2);
-      svg.appendChild(ring);
+      add("circle", { cx: c[0], cy: c[1], r: 7, fill: "none", "class": "center", "stroke-width": 2 });
     }
     pts.forEach(function (p, i) {
       var q = xy(p.geo.lat, p.geo.lon);
-      var dot = document.createElementNS(NS, "circle");
-      dot.setAttribute("cx", q[0]); dot.setAttribute("cy", q[1]); dot.setAttribute("r", 5);
-      dot.setAttribute("fill", COLOR[p._kind === "vet" ? "vet" : p.status] || "#2f4258");
-      dot.setAttribute("stroke", "white"); dot.setAttribute("stroke-width", 1.5);
+      var dot = add("circle", { cx: q[0], cy: q[1], r: 5, fill: COLOR[p._kind === "vet" ? "vet" : p.status] || "#2f4258", stroke: "white", "stroke-width": 1.5 });
       var t = document.createElementNS(NS, "title"); t.textContent = (i + 1) + ". " + p.name; dot.appendChild(t);
-      svg.appendChild(dot);
     });
     return svg;
   }
@@ -378,7 +506,7 @@ export function cardResource(version) {
     uri: CARD_URI,
     title: "DogPolicies trip card",
     description:
-      "An interactive card for trip plans, nearby places, road-trip stops and emergency vets: each place's dog rule, a dot map from the records' own coordinates, and links to the pages. MCP Apps hosts draw it beside the answer.",
+      "An interactive card for trip plans, nearby places, road-trip stops and emergency vets: each place's dog rule, a map of the places with the coast, lakes and highways, and links to the pages. MCP Apps hosts draw it beside the answer.",
     mimeType: CARD_MIME,
     // No outside connections or resources: the defaults stand. A border reads as a card in both hosts.
     uiMeta: { prefersBorder: true, csp: { connectDomains: [], resourceDomains: [] } },

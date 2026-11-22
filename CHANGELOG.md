@@ -14,6 +14,11 @@ site on its own when the network allows.
 
 Changed
 
+- The card's map is a map: land, the coast, lakes, reservoirs and bays, state lines and the highway network
+  (interstates, US highways and state routes, with route and lake names) under the places, drawn from U.S. Census
+  Bureau TIGERweb data (public domain) embedded in the card, so it still makes no outside request. The frame shows at
+  least about 9 km of ground, so places in one town sit in their surroundings. `scripts/fetch-card-basemap.mjs` in the
+  data repository rebuilds the data.
 - A call that arrives without what the tool needs is still an answer (`outcome: bad_input`, never `isError`), and now
   carries one working example call: `Example: dogpolicies_get_place {"id":"carmel-beach"}`. `dogpolicies_search_places`
   and `dogpolicies_find_hotels` called with no arguments at all say what they need instead of listing the whole data
