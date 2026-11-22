@@ -1,6 +1,11 @@
+<a href="https://dogpolicies.com/mcp/about/"><img src="https://dogpolicies.com/brand/readme-banner.png" alt="DogPolicies, MCP server for AI assistants" width="100%"></a>
+
 # DogPolicies MCP server
 
 **[dogpolicies.com](https://dogpolicies.com/)** · Verified dog rules for California and Nevada travel: hotel pet fees, trip plans, highway stops. [Install guide and example](https://dogpolicies.com/mcp/about/) · [Status](https://dogpolicies.com/status/)
+
+<p align="center"><img src="https://dogpolicies.com/brand/readme-card-in-claude.png" width="640" alt="The DogPolicies trip card in Claude: a map of South Lake Tahoe with the lake, US-50, SR-89 and the state line, each dog-friendly place as a dot, then day one: Campground by the Lake (dogs welcome, $2 per pet per night), the Tallac Historic Site shoreline (with limits) and K-9 Korral Dog Park"></p>
+<p align="center"><sub>In Claude: “Use DogPolicies: plan two nights in South Lake Tahoe with our dog.” Every stop links to its source and the date it was checked.</sub></p>
 
 DogPolicies answers dog-travel questions for California and Nevada, and every fact it returns carries its official source (an agency page or the business's own published policy) and the date it was checked; Nevada coverage is still thin. It does the work a web page cannot: the pet-fee arithmetic for a specific dog, day-by-day trip plans, highway stops in driving order with Caltrans conditions right now, the nearest 24-hour emergency vet on the way, what changed since a date, and corrections a person checks. In Claude and ChatGPT a trip, a town or a drive also comes back as a card in the chat.
 
