@@ -10,7 +10,10 @@ The data inside the package has its own date (`as_of` in every result). A
 new package version ships a new snapshot; the server also refreshes from the
 site on its own when the network allows.
 
-## Unreleased
+## 0.6.1 - 2026-11-21
+
+The trip card gets a real map, and the data grows by 350 places: chain hotels read one by one from their own pages,
+and restaurants, cafes, breweries and wineries in the top travel towns.
 
 Changed
 
@@ -25,6 +28,23 @@ Changed
   set; a call with `limit`, `offset` or any filter searches as before.
 - Three descriptions say what the tool is not for, without naming another tool (`search_places`, `find_hotels`,
   `plan_trip`).
+
+Data
+
+- 4,612 places (was 4,262). 317 chain hotels read from their own page on the chain's site: 232 new, 84 that carried
+  only their brand's policy now carry their own, and 80 say on their own page that they do not take pets (a brand
+  policy no longer stands in for them). 54 new restaurants, cafes, breweries and wineries and 14 enriched with meals,
+  hours or holiday hours, each from the business's own page.
+- 16 hotel chains in `dogpolicies_get_brand_policy` (was 6): Hilton, Marriott Bonvoy, Hyatt, Wyndham, Staybridge
+  Suites, Candlewood Suites, Comfort, Sleep Inn, Econo Lodge and Quality Inn, each quoting its own page that pet rules
+  are set hotel by hotel, with the hotels read listed under it.
+- A place that does not allow dogs no longer inherits its brand's fee or weight limit.
+
+Package
+
+- `LICENSE` is the plain MIT text under the DogPolicies name, so GitHub and npm detect it; the CC BY 4.0 and ODbL
+  terms for the data are in `data/LICENSE.md` beside the data file.
+- The README opens with the card as Claude draws it; `homepage` is https://dogpolicies.com/mcp/about/.
 
 ## 0.6.0 - 2026-11-20
 
