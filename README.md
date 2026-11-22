@@ -149,8 +149,8 @@ The `demo` output is the exact text an assistant receives:
 
 ## License and attribution
 
-- **Code:** MIT.
-- **Data:** [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). Attribute "DogPolicies" with a link to https://dogpolicies.com/ and cite each record with its URL and verified date; every result includes a ready-made citation line. Chain-hotel names and locations come from OpenStreetMap under the [ODbL](https://www.openstreetmap.org/copyright) and say so in `record_license`.
+- **Code:** MIT ([LICENSE](LICENSE)).
+- **Data:** [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) ([data/LICENSE.md](data/LICENSE.md)). Attribute "DogPolicies" with a link to https://dogpolicies.com/ and cite each record with its URL and verified date; every result includes a ready-made citation line. Chain-hotel names and locations come from OpenStreetMap under the [ODbL](https://www.openstreetmap.org/copyright) and say so in `record_license`.
 - The rules are a sourced, dated summary, not legal advice. Confirm with the agency or the business before you go, especially when a record says `stale`, `unreadable` or `inherited_brand`. Service animals are governed by the ADA, not these pet rules. Terms: https://dogpolicies.com/terms/
 
 ## For developers

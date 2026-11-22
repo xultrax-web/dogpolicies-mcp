@@ -64,7 +64,8 @@ test("tools/list still lists the canonical values, whatever the tool accepts", (
 
 test("route_stops: hotel, NB, a string for the list, 'yes' for a boolean: all read, none refused", () =>
   withClient(async (client) => {
-    const base = { from_mile: 170, to_mile: 222, response_format: "json" };
+    // San Diego miles: many hotels that take dogs (the one hotel at 170-222, in Lebec, says no on its own page).
+    const base = { from_mile: 10, to_mile: 60, response_format: "json" };
     const canon = await call(client, "dogpolicies_route_stops", {
       ...base,
       kinds: ["lodging"],

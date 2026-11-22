@@ -29,6 +29,7 @@
     "src/",
     "types/",
     "data/snapshot.json.gz",
+    "data/LICENSE.md",
     "server.json",
     "README.md",
     "CHANGELOG.md",
